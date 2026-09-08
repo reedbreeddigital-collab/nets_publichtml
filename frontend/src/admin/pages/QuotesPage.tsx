@@ -146,7 +146,16 @@ export function QuotesPage() {
       travelDate: l.createdAt,
       passengerCount: 1,
       estimatedInvestment: l.estimatedInvestmentMax || l.estimatedInvestmentMin || 0,
-      status: (l.status === 'pending' ? 'new' : ['won', 'Paid & Confirmed'].includes(l.status) ? 'converted' : l.status) as any,
+      status: (() => {
+        const isWon =
+          String(l.crmStatus).toLowerCase() === 'won & paid' ||
+          String(l.crmStatus).toLowerCase() === 'won' ||
+          String(l.crmStatus).toLowerCase() === 'converted' ||
+          ['won', 'converted', 'paid', 'paid & confirmed'].includes(String(l.status).toLowerCase())
+        if (isWon) return 'converted'
+        if (l.status === 'pending') return 'new'
+        return l.status
+      })() as any,
       createdAt: l.createdAt,
       notes: l.notes || '',
     }))
@@ -215,8 +224,22 @@ export function QuotesPage() {
   const handleUpdateStatus = (id: string, newStatus: string) => {
     updateQuoteStatus(id, newStatus as any, userId, userName)
     adminService.updateLeadStatus(id, newStatus)
+    const isWon = newStatus === 'converted' || newStatus === 'won' || newStatus === 'approved'
+    if (isWon) {
+      adminService.updateCrmStatus(id, 'Won & Paid')
+    }
     setSelectedQuote((prev) => (prev && prev.id === id ? { ...prev, status: newStatus as any } : prev))
-    setLiveLeads((prev) => prev.map((l) => (String(l.id) === id ? { ...l, status: newStatus } : l)))
+    setLiveLeads((prev) =>
+      prev.map((l) =>
+        String(l.id) === id
+          ? {
+              ...l,
+              status: newStatus,
+              ...(isWon ? { crmStatus: 'Won & Paid' } : {}),
+            }
+          : l
+      )
+    )
   }
 
   const handleDeleteQuote = async (id: string) => {

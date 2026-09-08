@@ -56,6 +56,15 @@ func AutoMigrate(db *gorm.DB) error {
 		return fmt.Errorf("failed GORM auto migration: %w", err)
 	}
 
+	// Self-healing synchronization: align any existing won or converted leads in MySQL
+	db.Model(&models.Lead{}).
+		Where("(LOWER(crm_status) IN ('won & paid', 'won', 'converted') OR LOWER(status) IN ('converted', 'paid')) AND status != 'converted'").
+		Update("status", "converted")
+
+	db.Model(&models.Lead{}).
+		Where("LOWER(status) IN ('converted', 'paid') AND crm_status != 'Won & Paid'").
+		Update("crm_status", "Won & Paid")
+
 	log.Println("✅ GORM AutoMigrate completed successfully (Leads, Contacts, Vehicles, Bookings, Customers, Users tables verified).")
 	return nil
 }

@@ -34,7 +34,7 @@ func (h *AdminHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 	var pipelineSum float64
 
 	db.Model(&models.Lead{}).Count(&totalQuotes)
-	db.Model(&models.Lead{}).Where("status = ? AND LOWER(crm_status) != ?", "pending", "invalid").Count(&pendingLeads)
+	db.Model(&models.Lead{}).Where("status = ? AND LOWER(crm_status) NOT IN (?, ?, ?, ?)", "pending", "invalid", "won & paid", "won", "converted").Count(&pendingLeads)
 	db.Model(&models.Contact{}).Where("status = ?", "unread").Count(&unreadContacts)
 	db.Model(&models.Vehicle{}).Where("available = ?", true).Count(&activeFleet)
 

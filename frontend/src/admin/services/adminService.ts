@@ -93,7 +93,14 @@ export class AdminService {
 
     const leads = await this.getLeads()
     const validLeads = leads.filter(l => String(l.crmStatus || l.status).toLowerCase() !== 'invalid')
-    const pendingLeads = validLeads.filter(l => l.crmStatus === 'New Lead' || l.crmStatus === 'Pending Review' || l.status === 'new' || l.status === 'pending').length
+    const pendingLeads = validLeads.filter(l => {
+      const isWon =
+        String(l.crmStatus).toLowerCase() === 'won & paid' ||
+        String(l.crmStatus).toLowerCase() === 'won' ||
+        String(l.crmStatus).toLowerCase() === 'converted' ||
+        ['converted', 'won', 'paid'].includes(String(l.status).toLowerCase())
+      return !isWon && (l.crmStatus === 'New Lead' || l.crmStatus === 'Pending Review' || l.status === 'new' || l.status === 'pending')
+    }).length
     const totalPipelineValue = validLeads.reduce((acc, l) => acc + (l.estimatedInvestmentMax || l.estimatedInvestmentMin || 0), 0)
 
     return {

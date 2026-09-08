@@ -39,9 +39,28 @@ const statusBadges: Record<string, { label: string; class: string }> = {
   'Contacted': { label: 'Contacted', class: 'admin-badge-accent' },
   'Proposal Sent': { label: 'Proposal Sent', class: 'admin-badge-accent' },
   'Won & Paid': { label: 'Won & Paid', class: 'admin-badge-green' },
+  'won': { label: 'Won & Paid', class: 'admin-badge-green' },
+  'converted': { label: 'Won & Paid', class: 'admin-badge-green' },
+  'paid': { label: 'Won & Paid', class: 'admin-badge-green' },
   'Not Interested': { label: 'Not Interested', class: 'admin-badge-red' },
   'Invalid': { label: 'Invalid (Test)', class: 'admin-badge-gray' },
   'invalid': { label: 'Invalid (Test)', class: 'admin-badge-gray' },
+}
+
+export const isLeadWon = (l: { crmStatus?: string; status?: string } | null | undefined): boolean => {
+  if (!l) return false
+  const crm = String(l.crmStatus || '').trim().toLowerCase()
+  const st = String(l.status || '').trim().toLowerCase()
+  return (
+    crm === 'won & paid' ||
+    crm === 'won' ||
+    crm === 'converted' ||
+    crm === 'paid & confirmed' ||
+    st === 'converted' ||
+    st === 'won' ||
+    st === 'paid' ||
+    st === 'paid & confirmed'
+  )
 }
 
 export function CRMPage() {
@@ -113,9 +132,14 @@ export function CRMPage() {
   const handleUpdateStatus = async (id: number | string, newStatus: string) => {
     const success = await adminService.updateCrmStatus(id, newStatus)
     if (success) {
-      setLeads(prev => prev.map(l => l.id === id ? { ...l, crmStatus: newStatus } : l))
+      const isWon = newStatus === 'Won & Paid'
+      const updatedStatus = isWon ? 'converted' : undefined
+      if (isWon) {
+        adminService.updateLeadStatus(id, 'converted')
+      }
+      setLeads(prev => prev.map(l => l.id === id ? { ...l, crmStatus: newStatus, ...(updatedStatus ? { status: updatedStatus } : {}) } : l))
       if (selectedLead && selectedLead.id === id) {
-        setSelectedLead({ ...selectedLead, crmStatus: newStatus })
+        setSelectedLead({ ...selectedLead, crmStatus: newStatus, ...(updatedStatus ? { status: updatedStatus } : {}) })
       }
     }
   }
@@ -161,6 +185,10 @@ export function CRMPage() {
       
       if (statusFilter === 'all') return matchSearch
 
+      if (statusFilter === 'Won & Paid') {
+        return matchSearch && isLeadWon(l)
+      }
+
       const leadSt = String(l?.crmStatus || l?.status || '').toLowerCase()
       const filtSt = statusFilter.toLowerCase()
       
@@ -178,7 +206,7 @@ export function CRMPage() {
 
   const validLeads = leads.filter(l => String(l.crmStatus || l.status).toLowerCase() !== 'invalid')
   const totalValue = validLeads.reduce((acc, l) => acc + (Number(l.estimatedInvestmentMax) || Number(l.estimatedInvestmentMin) || 0), 0)
-  const wonCount = validLeads.filter(l => l.crmStatus === 'Won & Paid').length
+  const wonCount = validLeads.filter(l => isLeadWon(l)).length
   const winRate = validLeads.length > 0 ? Math.round((wonCount / validLeads.length) * 100) : 0
   const invalidCount = leads.filter(l => String(l.crmStatus || l.status).toLowerCase() === 'invalid').length
 
@@ -293,7 +321,7 @@ export function CRMPage() {
                 </tr>
               ) : (
                 paginatedLeads.map(l => {
-                  const currentStatus = String(l.crmStatus || l.status)
+                  const currentStatus = isLeadWon(l) ? 'Won & Paid' : String(l.crmStatus || l.status)
                   const badge = statusBadges[currentStatus] || { label: currentStatus, class: 'admin-badge-gray' }
                   const val = l.estimatedInvestmentMax || l.estimatedInvestmentMin || 0
                   const assignedUser = users.find(u => String(u.id) === String(l.assignedTo))
@@ -530,8 +558,8 @@ export function CRMPage() {
                   <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: 'var(--adm-accent)', background: 'rgba(239, 68, 68, 0.1)', padding: '0.2rem 0.5rem', borderRadius: 4 }}>
                     {selectedLead.leadReference}
                   </span>
-                  <span className={`admin-badge ${(statusBadges[selectedLead.crmStatus || selectedLead.status] || { class: 'admin-badge-gray' }).class}`}>
-                    {(statusBadges[selectedLead.crmStatus || selectedLead.status] || { label: selectedLead.crmStatus || selectedLead.status }).label}
+                  <span className={`admin-badge ${(statusBadges[isLeadWon(selectedLead) ? 'Won & Paid' : (selectedLead.crmStatus || selectedLead.status)] || { class: 'admin-badge-gray' }).class}`}>
+                    {(statusBadges[isLeadWon(selectedLead) ? 'Won & Paid' : (selectedLead.crmStatus || selectedLead.status)] || { label: selectedLead.crmStatus || selectedLead.status }).label}
                   </span>
                 </div>
                 <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--adm-text-1)' }}>
@@ -892,7 +920,7 @@ export function CRMPage() {
                 <span className="admin-label" style={{ marginBottom: 0, whiteSpace: 'nowrap' }}>Change Status:</span>
                 <select
                   className="admin-select"
-                  value={selectedLead.crmStatus || selectedLead.status}
+                  value={isLeadWon(selectedLead) ? 'Won & Paid' : (selectedLead.crmStatus || selectedLead.status)}
                   onChange={e => handleUpdateStatus(selectedLead.id, e.target.value)}
                   style={{ minWidth: 170 }}
                 >

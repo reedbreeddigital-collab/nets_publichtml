@@ -92,9 +92,13 @@ func (h *LeadHandler) Store(w http.ResponseWriter, r *http.Request) {
 	payloadBytes, _ := json.Marshal(payload)
 
 	status := "pending"
+	crmStatus := "New Lead"
 	if payInfo, ok := payload["paymentInformation"].(map[string]interface{}); ok {
 		if s, ok := payInfo["status"].(string); ok && s != "" {
 			status = s
+			if s == "paid" || s == "converted" {
+				crmStatus = "Won & Paid"
+			}
 		}
 	}
 
@@ -113,6 +117,7 @@ func (h *LeadHandler) Store(w http.ResponseWriter, r *http.Request) {
 		EstimatedInvestmentMin: minEst,
 		EstimatedInvestmentMax: maxEst,
 		Status:                 status,
+		CrmStatus:              crmStatus,
 		Notes:                  notes,
 		PayloadJSON:            string(payloadBytes),
 	}
@@ -143,13 +148,44 @@ func (h *LeadHandler) Store(w http.ResponseWriter, r *http.Request) {
 			response.Error(w, http.StatusInternalServerError, fmt.Sprintf("Failed to store lead in DB: %v", err))
 			return
 		}
+
+		// Auto-create booking if lead was created in won / paid / converted state
+		if lead.Status == "paid" || lead.Status == "converted" || lead.CrmStatus == "Won & Paid" {
+			var existingCount int64
+			db.Model(&models.Booking{}).Where("quote_reference = ?", lead.LeadReference).Count(&existingCount)
+			if existingCount == 0 {
+				randomBytes := make([]byte, 3)
+				rand.Read(randomBytes)
+				bRef := fmt.Sprintf("NETS-BK-%s", strings.ToUpper(hex.EncodeToString(randomBytes)))
+				totalAmt := lead.EstimatedInvestmentMax
+				if totalAmt == 0 {
+					totalAmt = lead.EstimatedInvestmentMin
+				}
+				booking := models.Booking{
+					ID:                bRef,
+					Reference:         bRef,
+					QuoteReference:    lead.LeadReference,
+					CustomerName:      lead.CustomerName,
+					Pickup:            lead.Origin,
+					Destination:       lead.Destination,
+					TripType:          lead.JourneyType,
+					TotalAmount:       totalAmt,
+					PaymentStatus:     "paid",
+					OperationalStatus: "confirmed",
+					TravelDate:        time.Now(),
+					CreatedAt:         time.Now(),
+				}
+				_ = db.Create(&booking).Error
+			}
+		}
 	}
 
 	leadData := map[string]interface{}{
 		"id":            lead.ID,
 		"leadId":        ref,
 		"leadReference": ref,
-		"status":        "pending",
+		"status":        lead.Status,
+		"crmStatus":     lead.CrmStatus,
 		"customerName":  customerName,
 		"customerEmail": customerEmail,
 		"createdAt":     time.Now().Format(time.RFC3339),
@@ -262,6 +298,25 @@ func (h *LeadHandler) Update(w http.ResponseWriter, r *http.Request) {
 		lead.CrmStatus = body.CrmStatus
 		updates["crm_status"] = body.CrmStatus
 	}
+
+	// Bi-directional synchronization between CRM Status and Lead Status
+	crmWon := strings.EqualFold(body.CrmStatus, "Won & Paid") ||
+		strings.EqualFold(body.CrmStatus, "won") ||
+		strings.EqualFold(body.CrmStatus, "converted")
+
+	statusWon := strings.EqualFold(body.Status, "converted") ||
+		strings.EqualFold(body.Status, "won") ||
+		strings.EqualFold(body.Status, "paid")
+
+	if crmWon && body.Status == "" {
+		lead.Status = "converted"
+		updates["status"] = "converted"
+	}
+	if statusWon && body.CrmStatus == "" {
+		lead.CrmStatus = "Won & Paid"
+		updates["crm_status"] = "Won & Paid"
+	}
+
 	if body.AssignedTo != nil {
 		lead.AssignedTo = *body.AssignedTo
 		updates["assigned_to"] = *body.AssignedTo
@@ -275,8 +330,15 @@ func (h *LeadHandler) Update(w http.ResponseWriter, r *http.Request) {
 		db.Model(&lead).Updates(updates)
 	}
 
-	// Auto-create booking when converted
-	if body.Status == "converted" || body.CrmStatus == "converted" {
+	// Auto-create booking when converted or won
+	isConverted := strings.EqualFold(lead.Status, "converted") ||
+		strings.EqualFold(lead.Status, "won") ||
+		strings.EqualFold(lead.Status, "paid") ||
+		strings.EqualFold(lead.CrmStatus, "Won & Paid") ||
+		strings.EqualFold(lead.CrmStatus, "won") ||
+		strings.EqualFold(lead.CrmStatus, "converted")
+
+	if isConverted {
 		var existingCount int64
 		db.Model(&models.Booking{}).Where("quote_reference = ?", lead.LeadReference).Count(&existingCount)
 
@@ -284,6 +346,16 @@ func (h *LeadHandler) Update(w http.ResponseWriter, r *http.Request) {
 			randomBytes := make([]byte, 3)
 			rand.Read(randomBytes)
 			ref := fmt.Sprintf("NETS-BK-%s", strings.ToUpper(hex.EncodeToString(randomBytes)))
+
+			totalAmt := lead.EstimatedInvestmentMax
+			if totalAmt == 0 {
+				totalAmt = lead.EstimatedInvestmentMin
+			}
+
+			paymentStatus := "pending"
+			if strings.EqualFold(lead.CrmStatus, "won & paid") || strings.EqualFold(lead.Status, "paid") || strings.EqualFold(lead.Status, "converted") {
+				paymentStatus = "paid"
+			}
 
 			booking := models.Booking{
 				ID:                ref,
@@ -293,8 +365,8 @@ func (h *LeadHandler) Update(w http.ResponseWriter, r *http.Request) {
 				Pickup:            lead.Origin,
 				Destination:       lead.Destination,
 				TripType:          lead.JourneyType,
-				TotalAmount:       lead.EstimatedInvestmentMax,
-				PaymentStatus:     "pending",
+				TotalAmount:       totalAmt,
+				PaymentStatus:     paymentStatus,
 				OperationalStatus: "confirmed",
 				TravelDate:        time.Now(),
 				CreatedAt:         time.Now(),
