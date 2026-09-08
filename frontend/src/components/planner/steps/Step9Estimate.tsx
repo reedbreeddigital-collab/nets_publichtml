@@ -49,7 +49,7 @@ export function Step9Estimate() {
   }
 
   const details = state.customerDetails
-  const isValid = details.fullName && details.email && details.phone && details.consentGiven
+  const isValid = details.fullName && details.email && details.phone && details.consentGiven && details.heardAboutUs
 
   return (
     <motion.div variants={staggerContainer} initial="hidden" animate="visible" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -150,10 +150,27 @@ export function Step9Estimate() {
                 style={{ width: '100%', padding: '0.875rem 1rem', fontSize: '0.9375rem', border: '1px solid var(--color-nets-border)', outline: 'none' }} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-nets-text-2)' }}>Special Instructions <span style={{ color: 'var(--color-nets-text-3)', fontWeight: 400, textTransform: 'none', letterSpacing: 'normal' }}>(Optional)</span></label>
-              <textarea rows={1} value={details.specialInstructions} onChange={e => handleChange('specialInstructions', e.target.value)}
-                style={{ width: '100%', padding: '0.875rem 1rem', fontSize: '0.9375rem', border: '1px solid var(--color-nets-border)', outline: 'none', resize: 'vertical' }} />
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-nets-text-2)' }}>Where did you hear about us? *</label>
+              <select 
+                required
+                value={details.heardAboutUs}
+                onChange={e => handleChange('heardAboutUs', e.target.value)}
+                style={{ width: '100%', padding: '0.875rem 1rem', fontSize: '0.9375rem', border: '1px solid var(--color-nets-border)', outline: 'none', backgroundColor: '#fff' }}
+              >
+                <option value="" disabled>Select an option</option>
+                <option value="Google Search">Google Search</option>
+                <option value="Social Media">Social Media</option>
+                <option value="Friend/Colleague">Friend or Colleague</option>
+                <option value="Advertisement">Advertisement</option>
+                <option value="Other">Other</option>
+              </select>
             </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-nets-text-2)' }}>Special Instructions <span style={{ color: 'var(--color-nets-text-3)', fontWeight: 400, textTransform: 'none', letterSpacing: 'normal' }}>(Optional)</span></label>
+            <textarea rows={1} value={details.specialInstructions} onChange={e => handleChange('specialInstructions', e.target.value)}
+              style={{ width: '100%', padding: '0.875rem 1rem', fontSize: '0.9375rem', border: '1px solid var(--color-nets-border)', outline: 'none', resize: 'vertical' }} />
           </div>
 
           <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginTop: '0.5rem', cursor: 'pointer' }}>

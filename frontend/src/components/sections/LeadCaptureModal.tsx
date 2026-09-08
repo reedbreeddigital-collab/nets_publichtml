@@ -139,9 +139,10 @@ export function LeadCaptureModal() {
     e.preventDefault()
     
     const newErrors = []
-    if (!customerDetails.fullName) newErrors.push('name')
-    if (!customerDetails.email) newErrors.push('email')
-    if (!customerDetails.phone) newErrors.push('phone')
+    if (!customerDetails.fullName?.trim()) newErrors.push('name')
+    if (!customerDetails.email?.trim()) newErrors.push('email')
+    if (!customerDetails.phone?.trim()) newErrors.push('phone')
+    if (!customerDetails.heardAboutUs?.trim()) newErrors.push('heardAboutUs')
     
     if (newErrors.length > 0) {
       setErrors(newErrors)
@@ -239,34 +240,52 @@ export function LeadCaptureModal() {
 
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--color-nets-navy-dark)' }}>Full Name</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--color-nets-navy-dark)' }}>Full Name *</label>
                   <input 
                     type="text" 
                     placeholder="Enter your full name"
                     style={{ width: '100%', padding: '0.75rem', border: `1px solid ${errors.includes('name') ? 'var(--color-nets-red)' : 'var(--color-nets-border)'}`, borderRadius: '4px' }}
                     value={customerDetails.fullName}
-                    onChange={(e) => setCustomerDetails({ fullName: e.target.value })}
+                    onChange={(e) => {
+                      setCustomerDetails({ fullName: e.target.value })
+                      if (errors.includes('name')) setErrors(errors.filter(err => err !== 'name'))
+                    }}
                   />
+                  {errors.includes('name') && (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-nets-red)', marginTop: '0.25rem', display: 'block' }}>Please enter your name</span>
+                  )}
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--color-nets-navy-dark)' }}>Email Address</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--color-nets-navy-dark)' }}>Email Address *</label>
                   <input 
                     type="email" 
                     placeholder="you@company.com"
                     style={{ width: '100%', padding: '0.75rem', border: `1px solid ${errors.includes('email') ? 'var(--color-nets-red)' : 'var(--color-nets-border)'}`, borderRadius: '4px' }}
                     value={customerDetails.email}
-                    onChange={(e) => setCustomerDetails({ email: e.target.value })}
+                    onChange={(e) => {
+                      setCustomerDetails({ email: e.target.value })
+                      if (errors.includes('email')) setErrors(errors.filter(err => err !== 'email'))
+                    }}
                   />
+                  {errors.includes('email') && (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-nets-red)', marginTop: '0.25rem', display: 'block' }}>Please enter a valid email</span>
+                  )}
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--color-nets-navy-dark)' }}>Phone Number</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--color-nets-navy-dark)' }}>Phone Number *</label>
                   <input 
                     type="tel" 
                     placeholder="+234..."
                     style={{ width: '100%', padding: '0.75rem', border: `1px solid ${errors.includes('phone') ? 'var(--color-nets-red)' : 'var(--color-nets-border)'}`, borderRadius: '4px' }}
                     value={customerDetails.phone}
-                    onChange={(e) => setCustomerDetails({ phone: e.target.value })}
+                    onChange={(e) => {
+                      setCustomerDetails({ phone: e.target.value })
+                      if (errors.includes('phone')) setErrors(errors.filter(err => err !== 'phone'))
+                    }}
                   />
+                  {errors.includes('phone') && (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-nets-red)', marginTop: '0.25rem', display: 'block' }}>Please enter your phone number</span>
+                  )}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
@@ -280,11 +299,21 @@ export function LeadCaptureModal() {
                     />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--color-nets-navy-dark)' }}>Where did you hear about us?</label>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--color-nets-navy-dark)' }}>Where did you hear about us? *</label>
                     <select 
-                      style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--color-nets-border)', borderRadius: '4px', backgroundColor: '#fff' }}
+                      required
+                      style={{ 
+                        width: '100%', 
+                        padding: '0.75rem', 
+                        border: `1px solid ${errors.includes('heardAboutUs') ? 'var(--color-nets-red)' : 'var(--color-nets-border)'}`, 
+                        borderRadius: '4px', 
+                        backgroundColor: '#fff' 
+                      }}
                       value={customerDetails.heardAboutUs}
-                      onChange={(e) => setCustomerDetails({ heardAboutUs: e.target.value })}
+                      onChange={(e) => {
+                        setCustomerDetails({ heardAboutUs: e.target.value })
+                        if (errors.includes('heardAboutUs')) setErrors(errors.filter(err => err !== 'heardAboutUs'))
+                      }}
                     >
                       <option value="" disabled>Select an option</option>
                       <option value="Google Search">Google Search</option>
@@ -293,6 +322,9 @@ export function LeadCaptureModal() {
                       <option value="Advertisement">Advertisement</option>
                       <option value="Other">Other</option>
                     </select>
+                    {errors.includes('heardAboutUs') && (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--color-nets-red)', marginTop: '0.25rem', display: 'block' }}>Please select an option</span>
+                    )}
                   </div>
                 </div>
                 
