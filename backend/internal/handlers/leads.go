@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -169,7 +170,15 @@ func (h *LeadHandler) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var leads []models.Lead
-	if err := db.Order("id desc").Limit(50).Find(&leads).Error; err != nil {
+	query := db.Order("id desc")
+
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
+			query = query.Limit(limit)
+		}
+	}
+
+	if err := query.Find(&leads).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, fmt.Sprintf("Failed to fetch leads: %v", err))
 		return
 	}
@@ -184,6 +193,7 @@ func (h *LeadHandler) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.JSON(w, http.StatusOK, map[string]interface{}{
+		"count": len(leads),
 		"leads": leads,
 	})
 }

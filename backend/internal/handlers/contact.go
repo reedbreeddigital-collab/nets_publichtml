@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"nets-logistics-backend/internal/database"
@@ -81,12 +82,20 @@ func (h *ContactHandler) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var contacts []models.Contact
-	if err := db.Order("id desc").Limit(50).Find(&contacts).Error; err != nil {
+	query := db.Order("id desc")
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
+			query = query.Limit(limit)
+		}
+	}
+
+	if err := query.Find(&contacts).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, fmt.Sprintf("Failed to fetch contact messages: %v", err))
 		return
 	}
 
 	response.JSON(w, http.StatusOK, map[string]interface{}{
+		"count":    len(contacts),
 		"contacts": contacts,
 	})
 }
