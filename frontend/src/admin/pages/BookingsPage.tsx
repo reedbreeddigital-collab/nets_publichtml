@@ -461,32 +461,14 @@ export function BookingsPage() {
                         <span className={`admin-badge ${ops.class}`}>{ops.label}</span>
                       </td>
                       <td onClick={(e) => e.stopPropagation()}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                          <button
-                            type="button"
-                            className="admin-btn admin-btn-sm admin-btn-ghost"
-                            onClick={() => handleRowClick(b)}
-                            style={{ fontSize: 11, padding: '0.25rem 0.5rem' }}
-                          >
-                            Details
-                          </button>
-                          {isAdmin && (
-                            <button
-                              type="button"
-                              className="admin-btn admin-btn-sm admin-btn-ghost"
-                              onClick={() => handleDeleteBooking(b.id || b.reference)}
-                              disabled={isDeleting}
-                              title="Delete booking"
-                              style={{
-                                fontSize: 11,
-                                padding: '0.25rem 0.45rem',
-                                color: 'var(--adm-danger, #ef4444)',
-                              }}
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          )}
-                        </div>
+                        <button
+                          type="button"
+                          className="admin-btn admin-btn-sm admin-btn-ghost"
+                          onClick={() => handleRowClick(b)}
+                          style={{ fontSize: 11, padding: '0.25rem 0.5rem' }}
+                        >
+                          Details
+                        </button>
                       </td>
                     </tr>
                   )
@@ -1063,19 +1045,6 @@ export function BookingsPage() {
                   >
                     <Mail size={13} /> Email Client
                   </a>
-                )}
-
-                {isAdmin && (
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteBooking(selectedBooking.id || selectedBooking.reference)}
-                    disabled={isDeleting}
-                    className="admin-btn admin-btn-danger admin-btn-sm"
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                  >
-                    <Trash2 size={13} />
-                    {isDeleting ? 'Deleting...' : 'Delete Booking'}
-                  </button>
                 )}
 
                 <button
