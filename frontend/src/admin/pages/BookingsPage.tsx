@@ -24,6 +24,7 @@ import {
   Clock,
   CreditCard,
   UserCheck,
+  Trash2,
 } from 'lucide-react'
 import { useAdminStore, type AdminBooking } from '../store/useAdminStore'
 import { adminService, type AdminBookingDB } from '../services/adminService'
@@ -81,12 +82,14 @@ export function BookingsPage() {
     customers,
     drivers,
     bookings: storeBookings,
+    deleteBooking,
     updateBookingStatus,
     updatePaymentStatus,
     addBookingNote,
     assignBookingDriver,
   } = useAdminStore()
 
+  const isAdmin = session.user?.role === 'admin' || session.user?.role === 'super-admin'
   const [dbBookings, setDbBookings] = useState<AdminBooking[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -96,6 +99,7 @@ export function BookingsPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [noteInput, setNoteInput] = useState('')
   const [noteSaved, setNoteSaved] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1)
@@ -220,6 +224,28 @@ export function BookingsPage() {
     loadBookings()
     if (selectedBooking && selectedBooking.id === id) {
       setSelectedBooking((prev) => (prev ? { ...prev, driverId: driverId || null, driverName } : null))
+    }
+  }
+
+  const handleDeleteBooking = async (idOrRef: string) => {
+    if (!window.confirm('Are you sure you want to delete this booking? This action cannot be undone.')) return
+    setIsDeleting(true)
+    try {
+      const success = await adminService.deleteBooking(idOrRef)
+      if (success) {
+        deleteBooking(idOrRef)
+        setDbBookings((prev) => prev.filter((b) => b.id !== idOrRef && b.reference !== idOrRef))
+        if (selectedBooking && (selectedBooking.id === idOrRef || selectedBooking.reference === idOrRef)) {
+          setSelectedBooking(null)
+        }
+      } else {
+        alert('Failed to delete booking. Please try again.')
+      }
+    } catch (err) {
+      console.error('⚠️ [ADMIN] Error deleting booking:', err)
+      alert('Failed to delete booking. Please try again.')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -435,14 +461,32 @@ export function BookingsPage() {
                         <span className={`admin-badge ${ops.class}`}>{ops.label}</span>
                       </td>
                       <td onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          className="admin-btn admin-btn-sm admin-btn-ghost"
-                          onClick={() => handleRowClick(b)}
-                          style={{ fontSize: 11, padding: '0.25rem 0.5rem' }}
-                        >
-                          Details
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-sm admin-btn-ghost"
+                            onClick={() => handleRowClick(b)}
+                            style={{ fontSize: 11, padding: '0.25rem 0.5rem' }}
+                          >
+                            Details
+                          </button>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              className="admin-btn admin-btn-sm admin-btn-ghost"
+                              onClick={() => handleDeleteBooking(b.id || b.reference)}
+                              disabled={isDeleting}
+                              title="Delete booking"
+                              style={{
+                                fontSize: 11,
+                                padding: '0.25rem 0.45rem',
+                                color: 'var(--adm-danger, #ef4444)',
+                              }}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )
@@ -647,13 +691,27 @@ export function BookingsPage() {
                 </h3>
               </div>
 
-              <button
-                className="admin-btn admin-btn-icon admin-btn-ghost"
-                onClick={() => setSelectedBooking(null)}
-                style={{ borderRadius: '50%', width: 32, height: 32 }}
-              >
-                <X size={16} />
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-danger admin-btn-sm"
+                    onClick={() => handleDeleteBooking(selectedBooking.id || selectedBooking.reference)}
+                    disabled={isDeleting}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                  >
+                    <Trash2 size={13} />
+                    {isDeleting ? 'Deleting...' : 'Delete'}
+                  </button>
+                )}
+                <button
+                  className="admin-btn admin-btn-icon admin-btn-ghost"
+                  onClick={() => setSelectedBooking(null)}
+                  style={{ borderRadius: '50%', width: 32, height: 32 }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
 
             {/* Financial Amount Banner */}
@@ -1005,6 +1063,19 @@ export function BookingsPage() {
                   >
                     <Mail size={13} /> Email Client
                   </a>
+                )}
+
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteBooking(selectedBooking.id || selectedBooking.reference)}
+                    disabled={isDeleting}
+                    className="admin-btn admin-btn-danger admin-btn-sm"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                  >
+                    <Trash2 size={13} />
+                    {isDeleting ? 'Deleting...' : 'Delete Booking'}
+                  </button>
                 )}
 
                 <button

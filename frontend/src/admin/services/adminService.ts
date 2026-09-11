@@ -345,6 +345,21 @@ export class AdminService {
   }
 
   /**
+   * Delete booking directly in backend.
+   */
+  public async deleteBooking(id: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_URL}/bookings/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      })
+      return res.ok
+    } catch (err) {
+      console.error('⚠️ [ADMIN SERVICE] Error deleting booking:', err)
+      return false
+    }
+  }
+
+  /**
    * Fetch all customers.
    */
   public async getCustomers(): Promise<AdminCustomerDB[]> {

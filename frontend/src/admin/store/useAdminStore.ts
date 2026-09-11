@@ -115,6 +115,7 @@ interface AdminStore {
 
   // Bookings Actions
   createBooking: (booking: Omit<AdminBooking, 'id' | 'reference' | 'createdAt'>) => void
+  deleteBooking: (id: string) => void
   updateBookingStatus: (id: string, operationalStatus: AdminBooking['operationalStatus'], userId: string, userName: string) => void
   updatePaymentStatus: (id: string, paymentStatus: AdminBooking['paymentStatus']) => void
   addBookingNote: (id: string, note: string) => void
@@ -316,6 +317,11 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
     const newBooking: AdminBooking = { ...booking, id: `bk-${ref}`, reference: ref, createdAt: new Date().toISOString() }
     set(s => ({ bookings: [newBooking, ...s.bookings] }))
   },
+
+  deleteBooking: (id) =>
+    set(s => ({
+      bookings: s.bookings.filter(b => b.id !== id && b.reference !== id),
+    })),
 
   updateBookingStatus: (id, operationalStatus, userId, userName) => {
     const b = get().bookings.find(x => x.id === id)

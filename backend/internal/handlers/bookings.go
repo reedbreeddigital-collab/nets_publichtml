@@ -132,3 +132,23 @@ func (h *BookingHandler) Update(w http.ResponseWriter, r *http.Request) {
 		"booking": existing,
 	})
 }
+
+// Delete DELETE /api/v1/bookings/{id}
+func (h *BookingHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimPrefix(r.URL.Path, "/api/v1/bookings/")
+
+	db := database.DB
+	if db == nil || id == "" {
+		response.Error(w, http.StatusNotFound, "Booking not found.")
+		return
+	}
+
+	if err := db.Where("id = ? OR reference = ?", id, id).Delete(&models.Booking{}).Error; err != nil {
+		response.Error(w, http.StatusInternalServerError, fmt.Sprintf("Failed to delete booking: %v", err))
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Booking deleted successfully",
+	})
+}

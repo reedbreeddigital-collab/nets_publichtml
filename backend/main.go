@@ -82,6 +82,8 @@ func main() {
 				bookingHandler.Show(w, r)
 			case http.MethodPut, http.MethodPatch:
 				bookingHandler.Update(w, r)
+			case http.MethodDelete:
+				bookingHandler.Delete(w, r)
 			default:
 				response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
 			}
