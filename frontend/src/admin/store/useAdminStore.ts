@@ -36,6 +36,7 @@ export interface AdminQuote {
   tripType: string; passengerCount: number; travelDate: string
   estimatedInvestment: number; status: 'new' | 'reviewed' | 'approved' | 'rejected' | 'converted'
   createdAt: string; notes: string
+  additionalVehicles?: string[]
 }
 
 export interface AdminBooking {
@@ -290,8 +291,24 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
     get().addActivityEntry({ userId, userName, action: `Quote ${status.charAt(0).toUpperCase() + status.slice(1)}`, entity: 'Quote', entityId: id, description: `${status} quote ${q.reference} for ${q.customerName}`, previousValue: q.status, newValue: status })
   },
 
-  addQuoteNote: (id, note) =>
-    set(s => ({ quotes: s.quotes.map(x => x.id === id ? { ...x, notes: note } : x) })),
+  addQuoteNote: (id, note) => {
+    try {
+      const raw = localStorage.getItem('nets_quote_notes')
+      const notesMap = raw ? JSON.parse(raw) : {}
+      notesMap[id] = note
+      notesMap[id.toLowerCase()] = note
+      localStorage.setItem('nets_quote_notes', JSON.stringify(notesMap))
+    } catch (err) {
+      console.warn('Could not save note to localStorage', err)
+    }
+    set(s => ({
+      quotes: s.quotes.map(x =>
+        x.id === id || x.reference.toLowerCase() === id.toLowerCase()
+          ? { ...x, notes: note }
+          : x
+      ),
+    }))
+  },
 
   // ── Bookings ──
   createBooking: (booking) => {

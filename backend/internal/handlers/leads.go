@@ -33,6 +33,13 @@ func (h *LeadHandler) Store(w http.ResponseWriter, r *http.Request) {
 	randomBytes := make([]byte, 3)
 	rand.Read(randomBytes)
 	ref := fmt.Sprintf("NETS-LEAD-%s", strings.ToUpper(hex.EncodeToString(randomBytes)))
+	if customRef, ok := payload["leadReference"].(string); ok && customRef != "" {
+		ref = customRef
+	} else if meta, ok := payload["leadMetadata"].(map[string]interface{}); ok {
+		if mRef, ok := meta["quoteReferenceNumber"].(string); ok && mRef != "" {
+			ref = mRef
+		}
+	}
 
 	// Parse fields from payload
 	cust, _ := payload["customerInformation"].(map[string]interface{})

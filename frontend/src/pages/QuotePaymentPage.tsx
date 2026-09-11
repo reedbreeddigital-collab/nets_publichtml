@@ -226,16 +226,16 @@ export function QuotePaymentPage() {
 
   if (error || !lead) {
     return (
-      <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8FAFC', padding: '2rem' }}>
-        <div style={{ maxWidth: 500, background: '#ffffff', border: '1px solid #E2E8F0', borderRadius: 8, padding: '2.5rem', textAlign: 'center', boxShadow: '0 8px 30px rgba(0,0,0,0.04)' }}>
+      <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8FAFC', padding: '1.5rem' }}>
+        <div style={{ width: '100%', maxWidth: 500, background: '#ffffff', border: '1px solid #E2E8F0', borderRadius: 8, padding: 'clamp(1.5rem, 5vw, 2.5rem)', textAlign: 'center', boxShadow: '0 8px 30px rgba(0,0,0,0.04)' }}>
           <div style={{ width: 56, height: 56, background: 'rgba(192, 39, 45, 0.1)', color: '#C0272D', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
             <ShieldCheck size={28} />
           </div>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0D1060', marginBottom: '0.75rem' }}>Quotation Not Found</h2>
-          <p style={{ color: '#64748B', lineHeight: 1.6, marginBottom: '1.75rem' }}>{error || 'Unable to locate the specified quote reference.'}</p>
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-            <Link to="/" className="btn btn-navy" style={{ padding: '0.625rem 1.25rem', fontSize: '0.875rem' }}>Return Home</Link>
-            <Link to="/plan" className="btn btn-red" style={{ padding: '0.625rem 1.25rem', fontSize: '0.875rem' }}>Request New Quote</Link>
+          <p style={{ color: '#64748B', lineHeight: 1.6, marginBottom: '1.75rem', wordBreak: 'break-word' }}>{error || 'Unable to locate the specified quote reference.'}</p>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link to="/" className="btn btn-navy w-full sm:w-auto" style={{ padding: '0.625rem 1.25rem', fontSize: '0.875rem', textAlign: 'center' }}>Return Home</Link>
+            <Link to="/plan" className="btn btn-red w-full sm:w-auto" style={{ padding: '0.625rem 1.25rem', fontSize: '0.875rem', textAlign: 'center' }}>Request New Quote</Link>
           </div>
         </div>
       </div>
@@ -271,15 +271,15 @@ export function QuotePaymentPage() {
         style={{
           background: 'linear-gradient(135deg, #0D1060 0%, #1A1FA8 100%)',
           color: '#ffffff',
-          paddingTop: '8rem',
-          paddingBottom: '3.5rem',
+          paddingTop: 'clamp(5.5rem, 8vw, 8rem)',
+          paddingBottom: 'clamp(2.5rem, 5vw, 3.5rem)',
           position: 'relative',
         }}
       >
         <div className="container-nets">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.25rem' }}>
+            <div style={{ flex: 1, minWidth: 'min(100%, 280px)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
                 <span
                   style={{
                     background: 'rgba(192, 39, 45, 0.3)',
@@ -291,30 +291,33 @@ export function QuotePaymentPage() {
                     textTransform: 'uppercase',
                     padding: '0.35rem 0.75rem',
                     borderRadius: '2px',
+                    display: 'inline-block',
                   }}
                 >
                   Official Quotation
                 </span>
-                <span style={{ fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.8)', fontFamily: 'monospace', fontWeight: 600 }}>
+                <span style={{ fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.8)', fontFamily: 'monospace', fontWeight: 600, wordBreak: 'break-all' }}>
                   {lead.leadReference}
                 </span>
               </div>
 
-              <h1 style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+              <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2.5rem)', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.25, wordBreak: 'break-word' }}>
                 Quotation & Payment Checkout
               </h1>
-              <p style={{ fontSize: '1rem', color: 'rgba(255, 255, 255, 0.8)', marginTop: '0.5rem' }}>
+              <p style={{ fontSize: 'clamp(0.875rem, 2.5vw, 1rem)', color: 'rgba(255, 255, 255, 0.8)', marginTop: '0.5rem', wordBreak: 'break-word' }}>
                 Prepared for <strong style={{ color: '#ffffff' }}>{lead.customerName}</strong>
               </p>
             </div>
 
             {/* Shareable Link Tool */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div className="w-full sm:w-auto" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <button
                 onClick={handleCopyLink}
+                className="w-full sm:w-auto"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   gap: '0.5rem',
                   padding: '0.625rem 1.25rem',
                   background: 'rgba(255, 255, 255, 0.1)',
@@ -345,7 +348,7 @@ export function QuotePaymentPage() {
               background: '#F0FDF4',
               border: '1px solid #BBF7D0',
               borderRadius: '8px',
-              padding: '1.5rem 2rem',
+              padding: 'clamp(1rem, 3vw, 1.5rem)',
               marginBottom: '2rem',
               display: 'flex',
               alignItems: 'center',
@@ -355,7 +358,7 @@ export function QuotePaymentPage() {
               boxShadow: '0 4px 16px rgba(22, 163, 74, 0.08)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
               <div style={{ width: 44, height: 44, background: '#16A34A', color: '#ffffff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <CheckCircle2 size={24} />
               </div>
@@ -363,17 +366,19 @@ export function QuotePaymentPage() {
                 <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#166534', margin: 0 }}>
                   Quotation Confirmed & Fully Paid
                 </h3>
-                <p style={{ fontSize: '0.875rem', color: '#15803D', margin: '0.25rem 0 0' }}>
+                <p style={{ fontSize: '0.875rem', color: '#15803D', margin: '0.25rem 0 0', wordBreak: 'break-all' }}>
                   {paymentRef ? `Payment Transaction Ref: ${paymentRef}` : 'A dedicated operations specialist and driver have been assigned.'}
                 </p>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <div className="w-full sm:w-auto" style={{ display: 'flex', gap: '0.75rem' }}>
               <a
                 href="mailto:info@neweratransports.com"
+                className="w-full sm:w-auto"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   gap: '0.5rem',
                   padding: '0.5rem 1rem',
                   background: '#ffffff',
@@ -391,32 +396,32 @@ export function QuotePaymentPage() {
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: '2.5rem', alignItems: 'start' }}>
+        <div className="quote-checkout-grid">
           
-          {/* Left Column: Itinerary & Quote Breakdown */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Main Column: Route, Fleet, and Client */}
+          <div className="quote-checkout-col-main">
             
             {/* Route & Schedule Card */}
-            <div style={{ background: '#ffffff', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '1.75rem', boxShadow: '0 2px 12px rgba(0,0,0,0.03)' }}>
+            <div className="quote-card-route" style={{ background: '#ffffff', border: '1px solid #E2E8F0', borderRadius: '8px', padding: 'clamp(1.25rem, 3vw, 1.75rem)', boxShadow: '0 2px 12px rgba(0,0,0,0.03)' }}>
               <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0D1060', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <MapPin size={18} color="#C0272D" /> Journey Itinerary & Route
+                <MapPin size={18} color="#C0272D" style={{ flexShrink: 0 }} /> Journey Itinerary & Route
               </h2>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 4 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 4, flexShrink: 0 }}>
                     <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#16A34A', border: '2px solid #ffffff', boxShadow: '0 0 0 2px #16A34A' }} />
                     <div style={{ width: 2, height: 40, background: '#E2E8F0', margin: '4px 0' }} />
                     <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#C0272D', border: '2px solid #ffffff', boxShadow: '0 0 0 2px #C0272D' }} />
                   </div>
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div>
                       <span style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748B', letterSpacing: '0.05em' }}>Pickup Location</span>
-                      <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0F172A', marginTop: 2 }}>{lead.origin || 'Lagos, Nigeria'}</p>
+                      <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0F172A', marginTop: 2, wordBreak: 'break-word' }}>{lead.origin || 'Lagos, Nigeria'}</p>
                     </div>
                     <div>
                       <span style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748B', letterSpacing: '0.05em' }}>Destination</span>
-                      <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0F172A', marginTop: 2 }}>
+                      <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0F172A', marginTop: 2, wordBreak: 'break-word' }}>
                         {lead.destination || 'Lagos, Nigeria'}
                         {distanceKm > 0 && (
                           <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#C0272D', marginLeft: '0.5rem' }}>
@@ -429,16 +434,16 @@ export function QuotePaymentPage() {
                 </div>
 
                 {/* Schedule Sub-grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', background: '#F8FAFC', padding: '1rem', borderRadius: '6px', marginTop: '0.5rem', border: '1px solid #E2E8F0' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.875rem', background: '#F8FAFC', padding: '1rem', borderRadius: '6px', marginTop: '0.75rem', border: '1px solid #E2E8F0' }}>
                   <div>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748B' }}>
-                      <Calendar size={13} color="#0D1060" /> Travel Date
+                      <Calendar size={13} color="#0D1060" style={{ flexShrink: 0 }} /> Travel Date
                     </span>
-                    <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0D1060', marginTop: 2 }}>{travelDateFormatted}</p>
+                    <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0D1060', marginTop: 2, wordBreak: 'break-word' }}>{travelDateFormatted}</p>
                   </div>
                   <div>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748B' }}>
-                      <Clock size={13} color="#0D1060" /> Departure Time
+                      <Clock size={13} color="#0D1060" style={{ flexShrink: 0 }} /> Departure Time
                     </span>
                     <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0D1060', marginTop: 2 }}>{departureTime}</p>
                   </div>
@@ -451,9 +456,9 @@ export function QuotePaymentPage() {
                   {returnDateFormatted && (
                     <div>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748B' }}>
-                        <Calendar size={13} color="#0D1060" /> Return Date
+                        <Calendar size={13} color="#0D1060" style={{ flexShrink: 0 }} /> Return Date
                       </span>
-                      <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0D1060', marginTop: 2 }}>{returnDateFormatted} {returnTime ? `at ${returnTime}` : ''}</p>
+                      <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0D1060', marginTop: 2, wordBreak: 'break-word' }}>{returnDateFormatted} {returnTime ? `at ${returnTime}` : ''}</p>
                     </div>
                   )}
                 </div>
@@ -461,19 +466,19 @@ export function QuotePaymentPage() {
             </div>
 
             {/* Vehicle & Passenger Allocation */}
-            <div style={{ background: '#ffffff', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '1.75rem', boxShadow: '0 2px 12px rgba(0,0,0,0.03)' }}>
+            <div className="quote-card-fleet" style={{ background: '#ffffff', border: '1px solid #E2E8F0', borderRadius: '8px', padding: 'clamp(1.25rem, 3vw, 1.75rem)', boxShadow: '0 2px 12px rgba(0,0,0,0.03)' }}>
               <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0D1060', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Truck size={18} color="#C0272D" /> Assigned Fleet & Capacity
+                <Truck size={18} color="#C0272D" style={{ flexShrink: 0 }} /> Assigned Fleet & Capacity
               </h2>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+              <div className="quote-fleet-grid">
                 <div style={{ background: '#F8FAFC', padding: '1.25rem', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
                   <span style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748B', letterSpacing: '0.05em' }}>Primary Vehicle</span>
-                  <p style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0D1060', marginTop: 4 }}>{vehicleName}</p>
+                  <p style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0D1060', marginTop: 4, wordBreak: 'break-word' }}>{vehicleName}</p>
                   {additionalVehicles.length > 0 && (
                     <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
                       {additionalVehicles.map((v: string, i: number) => (
-                        <span key={i} style={{ background: 'rgba(26, 31, 168, 0.08)', color: '#0D1060', padding: '0.2rem 0.5rem', borderRadius: '3px', fontSize: '0.75rem', fontWeight: 600 }}>
+                        <span key={i} style={{ background: 'rgba(26, 31, 168, 0.08)', color: '#0D1060', padding: '0.2rem 0.5rem', borderRadius: '3px', fontSize: '0.75rem', fontWeight: 600, wordBreak: 'break-word' }}>
                           + {v}
                         </span>
                       ))}
@@ -483,52 +488,53 @@ export function QuotePaymentPage() {
 
                 <div style={{ background: '#F8FAFC', padding: '1.25rem', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748B', letterSpacing: '0.05em' }}>
-                    <Users size={12} /> Passenger Group
+                    <Users size={12} style={{ flexShrink: 0 }} /> Passenger Group
                   </span>
                   <p style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0D1060', marginTop: 4 }}>{passengerCount} Passengers</p>
-                  <span style={{ fontSize: '0.75rem', color: '#64748B' }}>Air-conditioned & Executive configured</span>
+                  <span style={{ fontSize: '0.75rem', color: '#64748B', display: 'block', marginTop: 2 }}>Air-conditioned & Executive configured</span>
                 </div>
               </div>
 
               {/* Service Standards Inclusions */}
-              <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #E2E8F0', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', fontSize: '0.8125rem', color: '#475569' }}>
+              <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #E2E8F0', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', fontSize: '0.8125rem', color: '#475569' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <CheckCircle2 size={15} color="#16A34A" /> Professional Uniformed Driver
+                  <CheckCircle2 size={15} color="#16A34A" style={{ flexShrink: 0 }} /> Professional Uniformed Driver
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <CheckCircle2 size={15} color="#16A34A" /> Fuel & Maintenance Included
+                  <CheckCircle2 size={15} color="#16A34A" style={{ flexShrink: 0 }} /> Fuel & Maintenance Included
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <CheckCircle2 size={15} color="#16A34A" /> Comprehensive Passenger Transit Cover
+                  <CheckCircle2 size={15} color="#16A34A" style={{ flexShrink: 0 }} /> Comprehensive Passenger Transit Cover
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <CheckCircle2 size={15} color="#16A34A" /> Tolls & Interstate Security Compliance
+                  <CheckCircle2 size={15} color="#16A34A" style={{ flexShrink: 0 }} /> Tolls & Interstate Security Compliance
                 </div>
               </div>
             </div>
 
             {/* Client Profile Card */}
-            <div style={{ background: '#ffffff', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-              <div>
+            <div className="quote-card-client" style={{ background: '#ffffff', border: '1px solid #E2E8F0', borderRadius: '8px', padding: 'clamp(1.25rem, 3vw, 1.5rem)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+              <div style={{ width: '100%' }}>
                 <span style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748B', letterSpacing: '0.05em' }}>Client Reference</span>
-                <p style={{ fontSize: '1rem', fontWeight: 700, color: '#0F172A' }}>{lead.customerName}</p>
-                <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8125rem', color: '#64748B', marginTop: 2 }}>
-                  <span>{lead.customerEmail}</span>
-                  {lead.customerPhone && <span>• {lead.customerPhone}</span>}
-                  {lead.company && <span>• {lead.company}</span>}
+                <p style={{ fontSize: '1rem', fontWeight: 700, color: '#0F172A', wordBreak: 'break-word', marginTop: 2 }}>{lead.customerName}</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem 1rem', fontSize: '0.8125rem', color: '#64748B', marginTop: 4 }}>
+                  <span style={{ wordBreak: 'break-all' }}>{lead.customerEmail}</span>
+                  {lead.customerPhone && <span style={{ wordBreak: 'break-word' }}>• {lead.customerPhone}</span>}
+                  {lead.company && <span style={{ wordBreak: 'break-word' }}>• {lead.company}</span>}
                 </div>
               </div>
             </div>
 
           </div>
 
-          {/* Right Column: Checkout Summary & Paystack Action */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'sticky', top: '100px' }}>
+          {/* Sidebar Column: Checkout Summary & Paystack Action */}
+          <div className="quote-checkout-col-sidebar">
             
-            <div style={{ background: '#ffffff', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '1.75rem', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
+            {/* Total Investment Card */}
+            <div className="quote-card-investment" style={{ background: '#ffffff', border: '1px solid #E2E8F0', borderRadius: '8px', padding: 'clamp(1.25rem, 3vw, 1.75rem)', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
               <div style={{ borderBottom: '1px solid #E2E8F0', paddingBottom: '1.25rem', marginBottom: '1.25rem' }}>
                 <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748B', letterSpacing: '0.05em' }}>Total Investment</span>
-                <div style={{ fontSize: '2rem', fontWeight: 800, color: '#0D1060', letterSpacing: '-0.02em', marginTop: 2 }}>
+                <div style={{ fontSize: 'clamp(1.75rem, 5vw, 2.25rem)', fontWeight: 800, color: '#0D1060', letterSpacing: '-0.02em', marginTop: 2, wordBreak: 'break-word' }}>
                   {fmtCurrency(amount)}
                 </div>
                 <span style={{ fontSize: '0.75rem', color: '#16A34A', fontWeight: 600 }}>✓ Guaranteed Rate · All Logistics Included</span>
@@ -536,23 +542,23 @@ export function QuotePaymentPage() {
 
               {/* Price itemization */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748B' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748B', gap: '0.5rem' }}>
                   <span>Base Fleet Charter</span>
-                  <span style={{ fontWeight: 600, color: '#0F172A' }}>{fmtCurrency(baseCharter)}</span>
+                  <span style={{ fontWeight: 600, color: '#0F172A', textAlign: 'right', flexShrink: 0 }}>{fmtCurrency(baseCharter)}</span>
                 </div>
                 {retentionFee > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#C0272D' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#C0272D', gap: '0.5rem' }}>
                     <span>Vehicle Retention ({retentionDays} days)</span>
-                    <span style={{ fontWeight: 600, color: '#C0272D' }}>{fmtCurrency(retentionFee)}</span>
+                    <span style={{ fontWeight: 600, color: '#C0272D', textAlign: 'right', flexShrink: 0 }}>{fmtCurrency(retentionFee)}</span>
                   </div>
                 )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748B' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748B', gap: '0.5rem' }}>
                   <span>VAT & Government Levies</span>
-                  <span style={{ fontWeight: 600, color: '#16A34A' }}>Included</span>
+                  <span style={{ fontWeight: 600, color: '#16A34A', textAlign: 'right', flexShrink: 0 }}>Included</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748B' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748B', gap: '0.5rem' }}>
                   <span>Driver Allowance & Fuel</span>
-                  <span style={{ fontWeight: 600, color: '#16A34A' }}>Included</span>
+                  <span style={{ fontWeight: 600, color: '#16A34A', textAlign: 'right', flexShrink: 0 }}>Included</span>
                 </div>
               </div>
 
@@ -560,7 +566,7 @@ export function QuotePaymentPage() {
               {paidSuccess ? (
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ padding: '0.875rem', background: '#DCFCE7', color: '#166534', borderRadius: '4px', fontWeight: 700, fontSize: '0.9375rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                    <CheckCircle2 size={18} /> Payment Received
+                    <CheckCircle2 size={18} style={{ flexShrink: 0 }} /> Payment Received
                   </div>
                   <p style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '0.75rem' }}>
                     An electronic receipt has been dispatched to your email address.
@@ -608,7 +614,7 @@ export function QuotePaymentPage() {
                     className="btn btn-red"
                     style={{
                       width: '100%',
-                      padding: '1rem',
+                      padding: '0.875rem 1rem',
                       fontSize: '1rem',
                       fontWeight: 700,
                       display: 'flex',
@@ -617,14 +623,15 @@ export function QuotePaymentPage() {
                       gap: '0.5rem',
                       cursor: isProcessing ? 'not-allowed' : 'pointer',
                       borderRadius: '4px',
+                      wordBreak: 'break-word',
                     }}
                   >
-                    <Lock size={16} />
-                    {isProcessing ? 'Connecting to Paystack...' : `Pay ${fmtCurrency(amount)} with Paystack`}
+                    <Lock size={16} style={{ flexShrink: 0 }} />
+                    <span>{isProcessing ? 'Connecting to Paystack...' : `Pay ${fmtCurrency(amount)} with Paystack`}</span>
                   </button>
 
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '0.75rem', color: '#64748B' }}>
-                    <ShieldCheck size={14} color="#16A34A" />
+                    <ShieldCheck size={14} color="#16A34A" style={{ flexShrink: 0 }} />
                     <span>256-bit SSL Encrypted · Paystack Gateway</span>
                   </div>
                 </div>
@@ -642,9 +649,9 @@ export function QuotePaymentPage() {
             </div>
 
             {/* Need assistance card */}
-            <div style={{ background: '#ffffff', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '1.25rem', fontSize: '0.8125rem', color: '#64748B' }}>
+            <div className="quote-card-help" style={{ background: '#ffffff', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '1.25rem', fontSize: '0.8125rem', color: '#64748B', wordBreak: 'break-word' }}>
               <strong style={{ color: '#0D1060', display: 'block', marginBottom: '0.25rem' }}>Questions regarding this quote?</strong>
-              Call our enterprise operations desk at <a href="tel:+2349167919439" style={{ color: '#C0272D', fontWeight: 600, textDecoration: 'none' }}>+234 916 791 9439</a> or email <a href="mailto:info@neweratransports.com" style={{ color: '#0D1060', fontWeight: 600 }}>info@neweratransports.com</a>.
+              Call our enterprise operations desk at <a href="tel:+2349167919439" style={{ color: '#C0272D', fontWeight: 600, textDecoration: 'none' }}>+234 916 791 9439</a> or email <a href="mailto:info@neweratransports.com" style={{ color: '#0D1060', fontWeight: 600, wordBreak: 'break-all' }}>info@neweratransports.com</a>.
             </div>
 
           </div>

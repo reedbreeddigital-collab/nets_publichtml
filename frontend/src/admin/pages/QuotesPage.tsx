@@ -57,6 +57,44 @@ const fmtDateShort = (iso: string) => {
   }
 }
 
+// ── Note Persistence Helpers ──────────────────────────────────────────
+const NOTES_STORAGE_KEY = 'nets_quote_notes'
+
+const getPersistedNotes = (): Record<string, string> => {
+  try {
+    const raw = localStorage.getItem(NOTES_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+const getPersistedNote = (refOrId?: string): string => {
+  if (!refOrId) return ''
+  const notes = getPersistedNotes()
+  return notes[refOrId.toLowerCase()] || notes[refOrId] || ''
+}
+
+const saveLocalNote = (refOrId: string, text: string) => {
+  if (!refOrId) return
+  try {
+    const notes = getPersistedNotes()
+    notes[refOrId] = text
+    notes[refOrId.toLowerCase()] = text
+    localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notes))
+  } catch (err) {
+    console.warn('Could not save note to localStorage', err)
+  }
+}
+
+export const FLEET_OPTIONS = [
+  { value: 'Toyota HiAce', label: 'Toyota HiAce (14 Seater)' },
+  { value: 'Toyota Coaster', label: 'Toyota Coaster (30 Seater)' },
+  { value: 'Executive SUV', label: 'Executive SUV (7 Seater)' },
+  { value: 'Executive Sedan', label: 'Executive Sedan (3 Seater)' },
+  { value: 'Toyota Sienna', label: 'Toyota Sienna (7 Seater)' },
+]
+
 const statusBadges: Record<string, { label: string; class: string }> = {
   new: { label: 'New Quote', class: 'admin-badge-accent' },
   reviewed: { label: 'Reviewed', class: 'admin-badge-yellow' },
@@ -81,12 +119,37 @@ export function QuotesPage() {
     email: '',
     phone: '',
     vehicle: 'Toyota HiAce',
+    additionalVehicles: [] as string[],
+    passengerCount: 1,
     origin: '',
     destination: '',
     travelDate: '',
     tripType: 'Drop-Off',
     investment: 0,
+    notes: '',
   })
+
+  const handleAddAdditionalVehicle = () => {
+    setCreateForm((prev) => ({
+      ...prev,
+      additionalVehicles: [...prev.additionalVehicles, 'Toyota HiAce'],
+    }))
+  }
+
+  const handleUpdateAdditionalVehicle = (index: number, vehicle: string) => {
+    setCreateForm((prev) => {
+      const updated = [...prev.additionalVehicles]
+      updated[index] = vehicle
+      return { ...prev, additionalVehicles: updated }
+    })
+  }
+
+  const handleRemoveAdditionalVehicle = (index: number) => {
+    setCreateForm((prev) => ({
+      ...prev,
+      additionalVehicles: prev.additionalVehicles.filter((_, i) => i !== index),
+    }))
+  }
 
   const handleCopyPaymentLink = (reference: string) => {
     const url = `${window.location.origin}/pay/${reference}`
@@ -129,39 +192,61 @@ export function QuotesPage() {
 
   // Combine live MySQL leads with store quotes without duplicating references
   const allQuotes: AdminQuote[] = useMemo(() => {
-    const liveItems: AdminQuote[] = liveLeads.map((l) => ({
-      id: String(l.id),
-      reference: l.leadReference || `NETS-${l.id}`,
-      customerName: l.customerName || 'Valued Customer',
-      customerEmail: l.customerEmail || 'N/A',
-      customerPhone: l.customerPhone || 'N/A',
-      customerId: 'cust-gen',
-      vehicleId: 'veh-gen',
-      vehicleName: l.journeyType || 'Standard Vehicle',
-      tripType: (l.journeyType || 'Drop-Off') as any,
-      pickup: l.origin || 'N/A',
-      destination: l.destination || 'N/A',
-      distanceKm: 0,
-      durationMins: 0,
-      travelDate: l.createdAt,
-      passengerCount: 1,
-      estimatedInvestment: l.estimatedInvestmentMax || l.estimatedInvestmentMin || 0,
-      status: (() => {
-        const isWon =
-          String(l.crmStatus).toLowerCase() === 'won & paid' ||
-          String(l.crmStatus).toLowerCase() === 'won' ||
-          String(l.crmStatus).toLowerCase() === 'converted' ||
-          ['won', 'converted', 'paid', 'paid & confirmed'].includes(String(l.status).toLowerCase())
-        if (isWon) return 'converted'
-        if (l.status === 'pending') return 'new'
-        return l.status
-      })() as any,
-      createdAt: l.createdAt,
-      notes: l.notes || '',
-    }))
+    const liveItems: AdminQuote[] = liveLeads.map((l) => {
+      const journey = l.payload?.journeyInformation || {}
+      const invest = l.payload?.estimatedInvestment || {}
+      const additionalVehicles = Array.isArray(journey.additionalVehicles)
+        ? journey.additionalVehicles.filter(Boolean)
+        : []
+      const passengerCount =
+        Number(journey.passengerCount) || Number((l as any).passengerCount) || 1
+      const vehicleName = invest.vehicleName || l.journeyType || 'Standard Vehicle'
+      const persistedNote =
+        l.notes ||
+        getPersistedNote(l.leadReference) ||
+        getPersistedNote(String(l.id)) ||
+        ''
+
+      return {
+        id: String(l.id),
+        reference: l.leadReference || `NETS-${l.id}`,
+        customerName: l.customerName || 'Valued Customer',
+        customerEmail: l.customerEmail || 'N/A',
+        customerPhone: l.customerPhone || 'N/A',
+        customerId: 'cust-gen',
+        vehicleId: 'veh-gen',
+        vehicleName,
+        additionalVehicles,
+        tripType: (journey.tripType || l.journeyType || 'Drop-Off') as any,
+        pickup: l.origin || journey.pickupLocation || 'N/A',
+        destination: l.destination || journey.destinationLocation || 'N/A',
+        distanceKm: Number(journey.distanceKm || invest.distanceKm || 0),
+        durationMins: Number(journey.durationMins || 0),
+        travelDate: journey.travelDate || l.createdAt,
+        passengerCount,
+        estimatedInvestment: l.estimatedInvestmentMax || l.estimatedInvestmentMin || 0,
+        status: (() => {
+          const isWon =
+            String(l.crmStatus).toLowerCase() === 'won & paid' ||
+            String(l.crmStatus).toLowerCase() === 'won' ||
+            String(l.crmStatus).toLowerCase() === 'converted' ||
+            ['won', 'converted', 'paid', 'paid & confirmed'].includes(String(l.status).toLowerCase())
+          if (isWon) return 'converted'
+          if (l.status === 'pending') return 'new'
+          return l.status
+        })() as any,
+        createdAt: l.createdAt,
+        notes: persistedNote,
+      }
+    })
 
     const liveRefs = new Set(liveItems.map((item) => item.reference.toLowerCase()))
-    const uniqueStoreQuotes = quotes.filter((q) => !liveRefs.has(q.reference.toLowerCase()))
+    const uniqueStoreQuotes = quotes
+      .filter((q) => !liveRefs.has(q.reference.toLowerCase()))
+      .map((q) => ({
+        ...q,
+        notes: q.notes || getPersistedNote(q.reference) || getPersistedNote(q.id) || '',
+      }))
     return [...liveItems, ...uniqueStoreQuotes]
   }, [liveLeads, quotes])
 
@@ -257,10 +342,45 @@ export function QuotesPage() {
 
   const handleSaveNote = async () => {
     if (!selectedQuote) return
-    addQuoteNote(selectedQuote.id, noteInput)
-    await adminService.updateLeadNotes(selectedQuote.id, noteInput)
-    setSelectedQuote((prev) => (prev ? { ...prev, notes: noteInput } : null))
+    const text = noteInput.trim()
+
+    // 1. Save to localStorage immediately (guaranteed local persistence across refreshes)
+    saveLocalNote(selectedQuote.id, text)
+    if (selectedQuote.reference) {
+      saveLocalNote(selectedQuote.reference, text)
+    }
+
+    // 2. Update liveLeads state so allQuotes and table update immediately
+    setLiveLeads((prev) =>
+      prev.map((l) =>
+        String(l.id) === selectedQuote.id ||
+        (l.leadReference && selectedQuote.reference && l.leadReference.toLowerCase() === selectedQuote.reference.toLowerCase())
+          ? { ...l, notes: text }
+          : l
+      )
+    )
+
+    // 3. Update selectedQuote in modal/drawer
+    setSelectedQuote((prev) => (prev ? { ...prev, notes: text } : null))
+
+    // 4. Update Zustand store
+    addQuoteNote(selectedQuote.id, text)
+    if (selectedQuote.reference) {
+      addQuoteNote(selectedQuote.reference, text)
+    }
+
     setNoteSaved(true)
+
+    // 5. Sync with backend API
+    try {
+      const ok = await adminService.updateLeadNotes(selectedQuote.id, text)
+      if (!ok && selectedQuote.reference && selectedQuote.reference !== selectedQuote.id) {
+        await adminService.updateLeadNotes(selectedQuote.reference, text)
+      }
+    } catch (err) {
+      console.warn('Backend note save warning:', err)
+    }
+
     setTimeout(() => setNoteSaved(false), 2500)
   }
 
@@ -309,7 +429,8 @@ export function QuotesPage() {
 
   const handleRowClick = (q: AdminQuote) => {
     setSelectedQuote(q)
-    setNoteInput(q.notes || '')
+    const existing = q.notes || getPersistedNote(q.reference) || getPersistedNote(q.id) || ''
+    setNoteInput(existing)
     setNoteSaved(false)
   }
 
@@ -317,11 +438,14 @@ export function QuotesPage() {
     e.preventDefault()
     setLoading(true)
     const quoteRef = `NETS-${Date.now().toString().slice(-6)}`
+    const initialNote = createForm.notes.trim()
+
     const quotePayload = {
       leadReference: quoteRef,
       customerName: createForm.name,
       customerEmail: createForm.email,
       customerPhone: createForm.phone,
+      notes: initialNote,
       customerInformation: {
         name: createForm.name,
         email: createForm.email,
@@ -335,6 +459,8 @@ export function QuotesPage() {
         destinationLocation: createForm.destination,
         destination: createForm.destination,
         travelDate: createForm.travelDate || new Date().toISOString(),
+        passengerCount: Number(createForm.passengerCount) || 1,
+        additionalVehicles: createForm.additionalVehicles,
       },
       estimatedInvestment: {
         vehicleName: createForm.vehicle || 'Toyota HiAce',
@@ -347,6 +473,10 @@ export function QuotesPage() {
       },
     }
 
+    if (initialNote) {
+      saveLocalNote(quoteRef, initialNote)
+    }
+
     const ok = await adminService.createLead(quotePayload)
 
     // Automatically send quotation email with sharable payment link to client
@@ -356,7 +486,20 @@ export function QuotesPage() {
 
     if (ok) {
       setShowCreateModal(false)
-      setCreateForm({ name: '', email: '', phone: '', vehicle: 'Toyota HiAce', origin: '', destination: '', travelDate: '', tripType: 'Drop-Off', investment: 0 })
+      setCreateForm({
+        name: '',
+        email: '',
+        phone: '',
+        vehicle: 'Toyota HiAce',
+        additionalVehicles: [],
+        passengerCount: 1,
+        origin: '',
+        destination: '',
+        travelDate: '',
+        tripType: 'Drop-Off',
+        investment: 0,
+        notes: '',
+      })
       loadQuotesAndLeads()
       alert(`Quote ${quoteRef} created and sent to ${createForm.email} with payment link!`)
     } else {
@@ -506,10 +649,31 @@ export function QuotesPage() {
                         <div style={{ fontSize: 11, color: 'var(--adm-text-3)' }}>{q.customerEmail}</div>
                       </td>
                       <td style={{ fontSize: 12, color: 'var(--adm-text-2)' }}>
-                        <div style={{ fontWeight: 500 }}>{q.vehicleName}</div>
-                        {q.tripType && q.tripType !== q.vehicleName && (
-                          <div style={{ fontSize: 11, color: 'var(--adm-text-3)' }}>{q.tripType}</div>
-                        )}
+                        <div style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
+                          <span>{q.vehicleName}</span>
+                          {q.additionalVehicles && q.additionalVehicles.length > 0 && (
+                            <span
+                              style={{
+                                background: 'rgba(26, 31, 168, 0.08)',
+                                color: 'var(--adm-accent)',
+                                fontSize: 10,
+                                fontWeight: 700,
+                                padding: '1px 5px',
+                                borderRadius: 3,
+                                whiteSpace: 'nowrap',
+                              }}
+                              title={`Additional Fleet: ${q.additionalVehicles.join(', ')}`}
+                            >
+                              +{q.additionalVehicles.length} fleet
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--adm-text-3)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                          <span>{q.tripType}</span>
+                          {q.passengerCount > 0 && (
+                            <span>• {q.passengerCount} pax</span>
+                          )}
+                        </div>
                       </td>
                       <td style={{ fontSize: 12, maxWidth: 180 }}>
                         <div style={{ color: 'var(--adm-text-1)' }}>{q.pickup.split(',')[0]}</div>
@@ -929,6 +1093,17 @@ export function QuotesPage() {
                   )}
                 </div>
 
+                {selectedQuote.additionalVehicles && selectedQuote.additionalVehicles.length > 0 && (
+                  <div style={{ marginTop: 2, display: 'flex', gap: '0.375rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={{ fontSize: 11, color: 'var(--adm-text-3)', fontWeight: 600 }}>Additional Fleet:</span>
+                    {selectedQuote.additionalVehicles.map((v, i) => (
+                      <span key={i} style={{ background: 'rgba(26, 31, 168, 0.08)', color: 'var(--adm-accent)', padding: '1px 6px', borderRadius: 3, fontSize: 11, fontWeight: 600 }}>
+                        + {v}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', gap: '0.5rem', fontSize: 12 }}>
                   <Calendar size={14} color="var(--adm-accent)" style={{ flexShrink: 0, marginTop: 2 }} />
                   <div style={{ color: 'var(--adm-text-2)' }}>
@@ -1244,16 +1419,17 @@ export function QuotesPage() {
 
               <div className="admin-grid-2">
                 <div className="admin-form-group">
-                  <label className="admin-label">Vehicle Category</label>
+                  <label className="admin-label">Primary Vehicle</label>
                   <select
                     className="admin-select"
                     value={createForm.vehicle}
                     onChange={e => setCreateForm({...createForm, vehicle: e.target.value})}
                   >
-                    <option value="Toyota HiAce">Toyota HiAce (14 Seater)</option>
-                    <option value="Toyota Coaster">Toyota Coaster (30 Seater)</option>
-                    <option value="Executive SUV">Executive SUV (7 Seater)</option>
-                    <option value="Executive Sedan">Executive Sedan</option>
+                    {FLEET_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="admin-form-group">
@@ -1270,13 +1446,91 @@ export function QuotesPage() {
                 </div>
               </div>
 
+              <div className="admin-grid-2">
+                <div className="admin-form-group">
+                  <label className="admin-label">Passenger Count</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={500}
+                    required
+                    className="admin-input"
+                    value={createForm.passengerCount || ''}
+                    onChange={e => setCreateForm({ ...createForm, passengerCount: Math.max(1, parseInt(e.target.value) || 1) })}
+                    placeholder="e.g. 14"
+                  />
+                </div>
+                <div className="admin-form-group">
+                  <label className="admin-label">Travel Date & Time</label>
+                  <input
+                    type="datetime-local"
+                    className="admin-input"
+                    value={createForm.travelDate}
+                    onChange={e => setCreateForm({...createForm, travelDate: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              {/* Additional Fleet Support */}
               <div className="admin-form-group">
-                <label className="admin-label">Travel Date & Time</label>
-                <input
-                  type="datetime-local"
-                  className="admin-input"
-                  value={createForm.travelDate}
-                  onChange={e => setCreateForm({...createForm, travelDate: e.target.value})}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.375rem' }}>
+                  <label className="admin-label" style={{ marginBottom: 0 }}>
+                    Additional Fleet Support (Optional)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleAddAdditionalVehicle}
+                    className="admin-btn admin-btn-ghost admin-btn-xs"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--adm-accent)', fontSize: 11, fontWeight: 600 }}
+                  >
+                    <Plus size={12} /> Add Vehicle
+                  </button>
+                </div>
+
+                {createForm.additionalVehicles.length === 0 ? (
+                  <div style={{ fontSize: 12, color: 'var(--adm-text-3)', fontStyle: 'italic', background: 'var(--adm-surface-2)', padding: '0.5rem 0.75rem', borderRadius: 'var(--adm-radius-sm)', border: '1px dashed var(--adm-border)' }}>
+                    No additional vehicles attached. Click "+ Add Vehicle" for convoys, escorts, or multi-vehicle bookings.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {createForm.additionalVehicles.map((v, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <select
+                          className="admin-select"
+                          style={{ flex: 1 }}
+                          value={v}
+                          onChange={(e) => handleUpdateAdditionalVehicle(idx, e.target.value)}
+                        >
+                          {FLEET_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          className="admin-btn admin-btn-ghost admin-btn-xs"
+                          onClick={() => handleRemoveAdditionalVehicle(idx)}
+                          style={{ color: 'var(--adm-danger)', padding: '0.375rem', borderRadius: '4px' }}
+                          title="Remove vehicle"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Initial Internal Notes */}
+              <div className="admin-form-group">
+                <label className="admin-label">Internal Notes / Remarks (Optional)</label>
+                <textarea
+                  className="admin-textarea"
+                  rows={2}
+                  value={createForm.notes}
+                  onChange={e => setCreateForm({ ...createForm, notes: e.target.value })}
+                  placeholder="Add internal notes for dispatch, special instructions, pricing considerations…"
                 />
               </div>
 

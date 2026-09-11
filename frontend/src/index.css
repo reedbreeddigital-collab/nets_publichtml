@@ -466,3 +466,80 @@ select.input-dark {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ─── Quotation & Payment Checkout Responsive Layout ────────────────── */
+.quote-checkout-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.quote-checkout-col-main,
+.quote-checkout-col-sidebar {
+  display: contents;
+}
+
+.quote-card-route {
+  order: 1;
+}
+
+.quote-card-fleet {
+  order: 2;
+}
+
+.quote-card-investment {
+  order: 3;
+}
+
+.quote-card-client {
+  order: 4;
+}
+
+.quote-card-help {
+  order: 5;
+}
+
+.quote-fleet-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .quote-fleet-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .quote-checkout-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    gap: 2.5rem;
+    align-items: start;
+  }
+
+  .quote-checkout-col-main {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .quote-checkout-col-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    position: sticky;
+    top: 100px;
+  }
+
+  .quote-card-route,
+  .quote-card-fleet,
+  .quote-card-investment,
+  .quote-card-client,
+  .quote-card-help {
+    order: unset;
+  }
+}
+
