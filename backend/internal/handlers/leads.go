@@ -280,10 +280,21 @@ func (h *LeadHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body struct {
-		Status     string  `json:"status"`
-		CrmStatus  string  `json:"crmStatus"`
-		AssignedTo *string `json:"assignedTo"`
-		Notes      *string `json:"notes"`
+		Status                 string   `json:"status"`
+		CrmStatus              string   `json:"crmStatus"`
+		AssignedTo             *string  `json:"assignedTo"`
+		Notes                  *string  `json:"notes"`
+		CustomerName           *string  `json:"customerName"`
+		CustomerEmail          *string  `json:"customerEmail"`
+		CustomerPhone          *string  `json:"customerPhone"`
+		Origin                 *string  `json:"origin"`
+		Destination            *string  `json:"destination"`
+		JourneyType            *string  `json:"journeyType"`
+		EstimatedInvestmentMin *float64 `json:"estimatedInvestmentMin"`
+		EstimatedInvestmentMax *float64 `json:"estimatedInvestmentMax"`
+		EstimatedInvestment    *float64 `json:"estimatedInvestment"`
+		VehicleName            *string  `json:"vehicleName"`
+		Payload                any      `json:"payload"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		response.Error(w, http.StatusBadRequest, "Invalid JSON payload")
@@ -331,6 +342,81 @@ func (h *LeadHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if body.Notes != nil {
 		lead.Notes = *body.Notes
 		updates["notes"] = *body.Notes
+	}
+
+	if body.EstimatedInvestment != nil {
+		price := *body.EstimatedInvestment
+		lead.EstimatedInvestmentMin = price
+		lead.EstimatedInvestmentMax = price
+		updates["estimated_investment_min"] = price
+		updates["estimated_investment_max"] = price
+	}
+	if body.EstimatedInvestmentMin != nil {
+		lead.EstimatedInvestmentMin = *body.EstimatedInvestmentMin
+		updates["estimated_investment_min"] = *body.EstimatedInvestmentMin
+	}
+	if body.EstimatedInvestmentMax != nil {
+		lead.EstimatedInvestmentMax = *body.EstimatedInvestmentMax
+		updates["estimated_investment_max"] = *body.EstimatedInvestmentMax
+	}
+	if body.CustomerName != nil {
+		lead.CustomerName = *body.CustomerName
+		updates["customer_name"] = *body.CustomerName
+	}
+	if body.CustomerEmail != nil {
+		lead.CustomerEmail = *body.CustomerEmail
+		updates["customer_email"] = *body.CustomerEmail
+	}
+	if body.CustomerPhone != nil {
+		lead.CustomerPhone = *body.CustomerPhone
+		updates["customer_phone"] = *body.CustomerPhone
+	}
+	if body.Origin != nil {
+		lead.Origin = *body.Origin
+		updates["origin"] = *body.Origin
+	}
+	if body.Destination != nil {
+		lead.Destination = *body.Destination
+		updates["destination"] = *body.Destination
+	}
+	if body.JourneyType != nil {
+		lead.JourneyType = *body.JourneyType
+		updates["journey_type"] = *body.JourneyType
+	}
+
+	// Synchronize PayloadJSON so customer checkout reads new pricing & vehicle
+	if body.Payload != nil {
+		if b, err := json.Marshal(body.Payload); err == nil {
+			lead.PayloadJSON = string(b)
+			updates["payload_json"] = string(b)
+		}
+	} else if body.EstimatedInvestment != nil || body.EstimatedInvestmentMax != nil || body.VehicleName != nil {
+		var currentPayload map[string]interface{}
+		if lead.PayloadJSON != "" {
+			_ = json.Unmarshal([]byte(lead.PayloadJSON), &currentPayload)
+		}
+		if currentPayload == nil {
+			currentPayload = make(map[string]interface{})
+		}
+		invest, _ := currentPayload["estimatedInvestment"].(map[string]interface{})
+		if invest == nil {
+			invest = make(map[string]interface{})
+		}
+		price := lead.EstimatedInvestmentMax
+		if price == 0 {
+			price = lead.EstimatedInvestmentMin
+		}
+		invest["total"] = price
+		invest["minimumEstimate"] = price
+		invest["maximumEstimate"] = price
+		if body.VehicleName != nil {
+			invest["vehicleName"] = *body.VehicleName
+		}
+		currentPayload["estimatedInvestment"] = invest
+		if b, err := json.Marshal(currentPayload); err == nil {
+			lead.PayloadJSON = string(b)
+			updates["payload_json"] = string(b)
+		}
 	}
 
 	if len(updates) > 0 {
@@ -398,6 +484,13 @@ func (h *LeadHandler) Update(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("Subject: New Lead Assigned: %s\n", lead.LeadReference)
 			fmt.Printf("Body: Hello %s,\n\nYou have been assigned a new lead (%s) from %s.\nLog in to your dashboard to review it.\n", user.FullName, lead.LeadReference, lead.CustomerName)
 			fmt.Printf("=================================================================\n")
+		}
+	}
+
+	if lead.PayloadJSON != "" {
+		var p interface{}
+		if json.Unmarshal([]byte(lead.PayloadJSON), &p) == nil {
+			lead.Payload = p
 		}
 	}
 

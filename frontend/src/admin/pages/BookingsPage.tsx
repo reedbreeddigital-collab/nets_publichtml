@@ -25,6 +25,7 @@ import {
   CreditCard,
   UserCheck,
   Trash2,
+  Edit2,
 } from 'lucide-react'
 import { useAdminStore, type AdminBooking } from '../store/useAdminStore'
 import { adminService, type AdminBookingDB } from '../services/adminService'
@@ -83,6 +84,7 @@ export function BookingsPage() {
     drivers,
     bookings: storeBookings,
     deleteBooking,
+    updateBooking,
     updateBookingStatus,
     updatePaymentStatus,
     addBookingNote,
@@ -96,6 +98,7 @@ export function BookingsPage() {
   const [opsFilter, setOpsFilter] = useState('all')
   const [payFilter, setPayFilter] = useState('all')
   const [selectedBooking, setSelectedBooking] = useState<AdminBooking | null>(null)
+  const [editingBooking, setEditingBooking] = useState<AdminBooking | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [noteInput, setNoteInput] = useState('')
   const [noteSaved, setNoteSaved] = useState(false)
@@ -452,7 +455,22 @@ export function BookingsPage() {
                       </td>
                       <td style={{ fontSize: 12 }}>{fmtDateShort(b.travelDate)}</td>
                       <td style={{ fontWeight: 700, color: 'var(--adm-text-1)' }}>
-                        {fmtCurrency(b.totalAmount)}
+                        {b.totalAmount > 0 ? (
+                          fmtCurrency(b.totalAmount)
+                        ) : (
+                          <span
+                            style={{
+                              color: 'var(--adm-warning)',
+                              background: 'rgba(234, 179, 8, 0.1)',
+                              padding: '2px 6px',
+                              borderRadius: 4,
+                              fontSize: 11,
+                              fontWeight: 600,
+                            }}
+                          >
+                            No Price
+                          </span>
+                        )}
                       </td>
                       <td>
                         <span className={`admin-badge ${pay.class}`}>{pay.label}</span>
@@ -461,14 +479,36 @@ export function BookingsPage() {
                         <span className={`admin-badge ${ops.class}`}>{ops.label}</span>
                       </td>
                       <td onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          className="admin-btn admin-btn-sm admin-btn-ghost"
-                          onClick={() => handleRowClick(b)}
-                          style={{ fontSize: 11, padding: '0.25rem 0.5rem' }}
-                        >
-                          Details
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                          {isAdmin && (!b.totalAmount || b.totalAmount <= 0) && (
+                            <button
+                              type="button"
+                              className="admin-btn admin-btn-sm"
+                              title="Set price for this booking"
+                              onClick={() => setEditingBooking(b)}
+                              style={{
+                                fontSize: 11,
+                                padding: '0.25rem 0.5rem',
+                                color: 'var(--adm-accent)',
+                                borderColor: 'var(--adm-accent)',
+                                background: 'rgba(239, 68, 68, 0.06)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 3,
+                              }}
+                            >
+                              <Edit2 size={11} /> Edit Price
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-sm admin-btn-ghost"
+                            onClick={() => handleRowClick(b)}
+                            style={{ fontSize: 11, padding: '0.25rem 0.5rem' }}
+                          >
+                            Details
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -677,6 +717,16 @@ export function BookingsPage() {
                 {isAdmin && (
                   <button
                     type="button"
+                    className="admin-btn admin-btn-ghost admin-btn-sm"
+                    onClick={() => setEditingBooking(selectedBooking)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                  >
+                    <Edit2 size={13} /> {(!selectedBooking.totalAmount || selectedBooking.totalAmount <= 0) ? 'Set Amount' : 'Edit'}
+                  </button>
+                )}
+                {isAdmin && (
+                  <button
+                    type="button"
                     className="admin-btn admin-btn-danger admin-btn-sm"
                     onClick={() => handleDeleteBooking(selectedBooking.id || selectedBooking.reference)}
                     disabled={isDeleting}
@@ -722,8 +772,22 @@ export function BookingsPage() {
                 >
                   Total Charter Booking Amount
                 </div>
-                <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--adm-accent)', marginTop: 2 }}>
-                  {fmtCurrency(selectedBooking.totalAmount)}
+                <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--adm-accent)', marginTop: 2, display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  {selectedBooking.totalAmount > 0 ? (
+                    fmtCurrency(selectedBooking.totalAmount)
+                  ) : (
+                    <span style={{ color: 'var(--adm-warning)', fontSize: 18 }}>No Amount Set</span>
+                  )}
+                  {isAdmin && (!selectedBooking.totalAmount || selectedBooking.totalAmount <= 0) && (
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-primary admin-btn-sm"
+                      onClick={() => setEditingBooking(selectedBooking)}
+                      style={{ fontSize: 12, padding: '0.2rem 0.6rem', display: 'flex', alignItems: 'center', gap: 4 }}
+                    >
+                      <Edit2 size={12} /> Set Amount Now
+                    </button>
+                  )}
                 </div>
               </div>
               <div style={{ fontSize: 12, color: 'var(--adm-text-2)', textAlign: 'right' }}>
@@ -1064,6 +1128,31 @@ export function BookingsPage() {
       {showCreate && (
         <CreateBookingModal onClose={() => setShowCreate(false)} vehicles={vehicles} customers={customers} />
       )}
+
+      {/* Edit Booking & Pricing Modal */}
+      {editingBooking && (
+        <EditBookingModal
+          booking={editingBooking}
+          vehicles={vehicles}
+          drivers={drivers}
+          onClose={() => setEditingBooking(null)}
+          onSaved={(updates) => {
+            updateBooking(editingBooking.id, updates)
+            setDbBookings((prev) =>
+              prev.map((b) =>
+                b.id === editingBooking.id || b.reference === editingBooking.reference
+                  ? { ...b, ...updates, totalAmount: Number(updates.totalAmount) || b.totalAmount }
+                  : b
+              )
+            )
+            if (selectedBooking && (selectedBooking.id === editingBooking.id || selectedBooking.reference === editingBooking.reference)) {
+              setSelectedBooking((prev) =>
+                prev ? { ...prev, ...updates, totalAmount: Number(updates.totalAmount) || prev.totalAmount } : null
+              )
+            }
+          }}
+        />
+      )}
     </>
   )
 }
@@ -1270,3 +1359,302 @@ function CreateBookingModal({ onClose, vehicles, customers }: any) {
     </div>
   )
 }
+
+function EditBookingModal({
+  booking,
+  vehicles,
+  drivers,
+  onClose,
+  onSaved,
+}: {
+  booking: AdminBooking
+  vehicles: any[]
+  drivers: any[]
+  onClose: () => void
+  onSaved: (updated: Partial<AdminBooking>) => void
+}) {
+  const [form, setForm] = useState({
+    totalAmount: booking.totalAmount || 0,
+    vehicleId: booking.vehicleId || '',
+    vehicleName: booking.vehicleName || '',
+    driverId: booking.driverId || '',
+    driverName: booking.driverName || '',
+    pickup: booking.pickup || '',
+    destination: booking.destination || '',
+    travelDate: booking.travelDate || '',
+    passengerCount: booking.passengerCount || 1,
+    customerName: booking.customerName || '',
+    tripType: booking.tripType || 'Charter Booking',
+    notes: booking.notes || '',
+  })
+  const [isSaving, setIsSaving] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSaving(true)
+    const amount = Number(form.totalAmount) || 0
+    try {
+      const ok = await adminService.updateBooking(booking.id, {
+        totalAmount: amount,
+        vehicleId: form.vehicleId,
+        vehicleName: form.vehicleName,
+        driverId: form.driverId || undefined,
+        driverName: form.driverName || undefined,
+        pickup: form.pickup,
+        destination: form.destination,
+        passengerCount: form.passengerCount,
+        customerName: form.customerName,
+        tripType: form.tripType,
+        travelDate: form.travelDate ? (new Date(form.travelDate).toISOString() as any) : undefined,
+        notes: form.notes,
+      })
+      if (ok) {
+        onSaved({
+          totalAmount: amount,
+          vehicleId: form.vehicleId,
+          vehicleName: form.vehicleName,
+          driverId: form.driverId || null,
+          driverName: form.driverName || null,
+          pickup: form.pickup,
+          destination: form.destination,
+          passengerCount: form.passengerCount,
+          customerName: form.customerName,
+          tripType: form.tripType,
+          travelDate: form.travelDate,
+          notes: form.notes,
+        })
+        onClose()
+      } else {
+        alert('Failed to save booking updates. Please try again.')
+      }
+    } catch (err) {
+      console.error('Error saving booking updates:', err)
+      alert('Failed to save booking updates.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <div
+      className="admin-modal-backdrop"
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1100,
+        background: 'rgba(15, 23, 42, 0.75)',
+        backdropFilter: 'blur(5px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem',
+      }}
+    >
+      <div
+        className="admin-modal"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%',
+          maxWidth: 620,
+          background: '#ffffff',
+          borderRadius: 8,
+          overflow: 'hidden',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+          maxHeight: '92vh',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div
+          className="admin-modal-header"
+          style={{
+            padding: '1.25rem 1.5rem',
+            borderBottom: '1px solid var(--adm-border)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--adm-text-1)' }}>
+              Edit Booking & Pricing
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--adm-text-3)', fontFamily: 'monospace' }}>
+              Reference: {booking.reference}
+            </div>
+          </div>
+          <button className="admin-btn admin-btn-icon admin-btn-ghost" onClick={onClose} style={{ borderRadius: '50%', width: 32, height: 32 }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ overflowY: 'auto', padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {/* Pricing Highlight Box */}
+          <div
+            style={{
+              background: 'rgba(239, 68, 68, 0.05)',
+              border: '1px solid rgba(239, 68, 68, 0.2)',
+              borderRadius: 6,
+              padding: '1rem',
+            }}
+          >
+            <label className="admin-label admin-label-req" style={{ color: 'var(--adm-accent)', fontWeight: 700 }}>
+              Total Charter Booking Amount (₦)
+            </label>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <input
+                type="number"
+                min={0}
+                step={1000}
+                required
+                className="admin-input"
+                style={{ fontSize: 16, fontWeight: 700, color: 'var(--adm-accent)' }}
+                placeholder="e.g. 200000"
+                value={form.totalAmount || ''}
+                onChange={(e) => setForm({ ...form, totalAmount: Number(e.target.value) })}
+              />
+              <div style={{ fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--adm-text-2)' }}>
+                {fmtCurrency(Number(form.totalAmount) || 0)}
+              </div>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--adm-text-3)', marginTop: 4 }}>
+              Setting the total amount updates the charter billing price for this booking.
+            </div>
+          </div>
+
+          <div className="admin-grid-2" style={{ gap: '0.75rem' }}>
+            <div className="admin-form-group">
+              <label className="admin-label">Customer Name</label>
+              <input
+                className="admin-input"
+                value={form.customerName}
+                onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+              />
+            </div>
+            <div className="admin-form-group">
+              <label className="admin-label">Trip Type</label>
+              <input
+                className="admin-input"
+                value={form.tripType}
+                onChange={(e) => setForm({ ...form, tripType: e.target.value })}
+              />
+            </div>
+          </div>
+
+          {/* Vehicle & Driver */}
+          <div className="admin-grid-2" style={{ gap: '0.75rem' }}>
+            <div className="admin-form-group">
+              <label className="admin-label">Vehicle</label>
+              <select
+                className="admin-select"
+                value={form.vehicleId}
+                onChange={(e) => {
+                  const v = vehicles.find((x: any) => x.id === e.target.value)
+                  setForm({ ...form, vehicleId: e.target.value, vehicleName: v?.name || form.vehicleName })
+                }}
+              >
+                <option value="">Select vehicle…</option>
+                {vehicles.map((v: any) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="admin-form-group">
+              <label className="admin-label">Driver</label>
+              <select
+                className="admin-select"
+                value={form.driverId}
+                onChange={(e) => {
+                  const d = drivers.find((x: any) => x.id === e.target.value)
+                  setForm({ ...form, driverId: e.target.value, driverName: d?.name || '' })
+                }}
+              >
+                <option value="">Unassigned</option>
+                {drivers.map((d: any) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name} ({d.phone})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Route */}
+          <div className="admin-grid-2" style={{ gap: '0.75rem' }}>
+            <div className="admin-form-group">
+              <label className="admin-label">Pickup Location</label>
+              <input
+                className="admin-input"
+                value={form.pickup}
+                onChange={(e) => setForm({ ...form, pickup: e.target.value })}
+              />
+            </div>
+            <div className="admin-form-group">
+              <label className="admin-label">Destination</label>
+              <input
+                className="admin-input"
+                value={form.destination}
+                onChange={(e) => setForm({ ...form, destination: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="admin-grid-2" style={{ gap: '0.75rem' }}>
+            <div className="admin-form-group">
+              <label className="admin-label">Travel Date</label>
+              <input
+                type="date"
+                className="admin-input"
+                value={form.travelDate ? form.travelDate.slice(0, 10) : ''}
+                onChange={(e) => setForm({ ...form, travelDate: e.target.value })}
+              />
+            </div>
+            <div className="admin-form-group">
+              <label className="admin-label">Passenger Count</label>
+              <input
+                type="number"
+                min={1}
+                className="admin-input"
+                value={form.passengerCount}
+                onChange={(e) => setForm({ ...form, passengerCount: Number(e.target.value) })}
+              />
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="admin-form-group">
+            <label className="admin-label">Internal Notes / Remarks</label>
+            <textarea
+              className="admin-textarea"
+              rows={2}
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            />
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '0.75rem',
+              marginTop: '0.5rem',
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--adm-border)',
+            }}
+          >
+            <button type="button" className="admin-btn admin-btn-ghost" onClick={onClose} disabled={isSaving}>
+              Cancel
+            </button>
+            <button type="submit" className="admin-btn admin-btn-primary" disabled={isSaving}>
+              {isSaving ? 'Saving…' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+

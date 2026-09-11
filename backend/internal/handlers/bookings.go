@@ -114,7 +114,7 @@ func (h *BookingHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var existing models.Booking
-	if err := db.Where("id = ?", id).First(&existing).Error; err != nil {
+	if err := db.Where("id = ? OR reference = ?", id, id).First(&existing).Error; err != nil {
 		response.Error(w, http.StatusNotFound, "Booking not found.")
 		return
 	}

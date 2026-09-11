@@ -110,12 +110,14 @@ interface AdminStore {
   setSearchOpen: (open: boolean) => void
 
   // Quotes Actions
+  updateQuote: (id: string, updates: Partial<AdminQuote>) => void
   updateQuoteStatus: (id: string, status: AdminQuote['status'], userId: string, userName: string) => void
   addQuoteNote: (id: string, note: string) => void
 
   // Bookings Actions
   createBooking: (booking: Omit<AdminBooking, 'id' | 'reference' | 'createdAt'>) => void
   deleteBooking: (id: string) => void
+  updateBooking: (id: string, updates: Partial<AdminBooking>) => void
   updateBookingStatus: (id: string, operationalStatus: AdminBooking['operationalStatus'], userId: string, userName: string) => void
   updatePaymentStatus: (id: string, paymentStatus: AdminBooking['paymentStatus']) => void
   addBookingNote: (id: string, note: string) => void
@@ -285,6 +287,11 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
   setSearchOpen: (open) => set({ searchOpen: open }),
 
   // ── Quotes ──
+  updateQuote: (id, updates) =>
+    set(s => ({
+      quotes: s.quotes.map(x => (x.id === id || x.reference.toLowerCase() === id.toLowerCase() ? { ...x, ...updates } : x)),
+    })),
+
   updateQuoteStatus: (id, status, userId, userName) => {
     const q = get().quotes.find(x => x.id === id)
     if (!q) return
@@ -321,6 +328,11 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
   deleteBooking: (id) =>
     set(s => ({
       bookings: s.bookings.filter(b => b.id !== id && b.reference !== id),
+    })),
+
+  updateBooking: (id, updates) =>
+    set(s => ({
+      bookings: s.bookings.map(x => (x.id === id || x.reference.toLowerCase() === id.toLowerCase() ? { ...x, ...updates } : x)),
     })),
 
   updateBookingStatus: (id, operationalStatus, userId, userName) => {

@@ -244,6 +244,23 @@ export class AdminService {
   }
 
   /**
+   * Update lead / quote fields directly in remote backend database.
+   */
+  public async updateLead(id: number | string, updates: Record<string, any>): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_URL}/leads/${encodeURIComponent(String(id))}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      })
+      return res.ok
+    } catch (err) {
+      console.error('⚠️ [ADMIN SERVICE] Error updating lead:', err)
+      return false
+    }
+  }
+
+  /**
    * Update CRM pipeline status directly in remote backend database.
    */
   public async updateCrmStatus(id: number | string, crmStatus: string): Promise<boolean> {

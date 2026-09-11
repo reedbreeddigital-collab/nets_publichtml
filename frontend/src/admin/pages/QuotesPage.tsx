@@ -23,6 +23,7 @@ import {
   ExternalLink,
   CreditCard,
   Truck,
+  Edit2,
 } from 'lucide-react'
 import { useAdminStore, type AdminQuote } from '../store/useAdminStore'
 import { adminService, type AdminLead } from '../services/adminService'
@@ -104,12 +105,13 @@ const statusBadges: Record<string, { label: string; class: string }> = {
 }
 
 export function QuotesPage() {
-  const { quotes, updateQuoteStatus, addQuoteNote, session } = useAdminStore()
+  const { quotes, updateQuote, updateQuoteStatus, addQuoteNote, session, vehicles } = useAdminStore()
   const [liveLeads, setLiveLeads] = useState<AdminLead[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedQuote, setSelectedQuote] = useState<AdminQuote | null>(null)
+  const [editingQuote, setEditingQuote] = useState<AdminQuote | null>(null)
   const [noteInput, setNoteInput] = useState('')
   const [noteSaved, setNoteSaved] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
@@ -682,7 +684,22 @@ export function QuotesPage() {
                         </div>
                       </td>
                       <td style={{ fontWeight: 700, color: 'var(--adm-text-1)' }}>
-                        {q.estimatedInvestment > 0 ? fmtCurrency(q.estimatedInvestment) : '₦---,---'}
+                        {q.estimatedInvestment > 0 ? (
+                          fmtCurrency(q.estimatedInvestment)
+                        ) : (
+                          <span
+                            style={{
+                              color: 'var(--adm-warning)',
+                              background: 'rgba(234, 179, 8, 0.1)',
+                              padding: '2px 6px',
+                              borderRadius: 4,
+                              fontSize: 11,
+                              fontWeight: 600,
+                            }}
+                          >
+                            No Price
+                          </span>
+                        )}
                       </td>
                       <td style={{ fontSize: 12 }}>{fmtDateShort(q.createdAt || q.travelDate)}</td>
                       <td>
@@ -690,6 +707,26 @@ export function QuotesPage() {
                       </td>
                       <td onClick={(e) => e.stopPropagation()}>
                         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                          {isAdmin && (!q.estimatedInvestment || q.estimatedInvestment <= 0) && (
+                            <button
+                              type="button"
+                              className="admin-btn admin-btn-sm"
+                              title="Set price for this unpriced quote"
+                              onClick={() => setEditingQuote(q)}
+                              style={{
+                                fontSize: 11,
+                                padding: '0.25rem 0.5rem',
+                                color: 'var(--adm-accent)',
+                                borderColor: 'var(--adm-accent)',
+                                background: 'rgba(239, 68, 68, 0.06)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 3,
+                              }}
+                            >
+                              <Edit2 size={11} /> Edit Price
+                            </button>
+                          )}
                           {q.status === 'new' && (
                             <>
                               <button
@@ -923,7 +960,17 @@ export function QuotesPage() {
                 </h3>
               </div>
 
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-ghost admin-btn-sm"
+                    onClick={() => setEditingQuote(selectedQuote)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                  >
+                    <Edit2 size={13} /> {(!selectedQuote.estimatedInvestment || selectedQuote.estimatedInvestment <= 0) ? 'Set Price' : 'Edit'}
+                  </button>
+                )}
                 {isAdmin && (
                   <button
                     className="admin-btn admin-btn-danger admin-btn-sm"
@@ -969,8 +1016,22 @@ export function QuotesPage() {
                 >
                   Estimated Investment / Quote Value
                 </div>
-                <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--adm-accent)', marginTop: 2 }}>
-                  {fmtCurrency(selectedQuote.estimatedInvestment)}
+                <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--adm-accent)', marginTop: 2, display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  {selectedQuote.estimatedInvestment > 0 ? (
+                    fmtCurrency(selectedQuote.estimatedInvestment)
+                  ) : (
+                    <span style={{ color: 'var(--adm-warning)', fontSize: 18 }}>No Price Set</span>
+                  )}
+                  {isAdmin && (!selectedQuote.estimatedInvestment || selectedQuote.estimatedInvestment <= 0) && (
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-primary admin-btn-sm"
+                      onClick={() => setEditingQuote(selectedQuote)}
+                      style={{ fontSize: 12, padding: '0.2rem 0.6rem', display: 'flex', alignItems: 'center', gap: 4 }}
+                    >
+                      <Edit2 size={12} /> Set Price Now
+                    </button>
+                  )}
                 </div>
               </div>
               <div style={{ fontSize: 12, color: 'var(--adm-text-2)', textAlign: 'right' }}>
@@ -1542,6 +1603,344 @@ export function QuotesPage() {
           </div>
         </div>
       )}
+
+      {/* Edit Quote & Pricing Modal */}
+      {editingQuote && (
+        <EditQuoteModal
+          quote={editingQuote}
+          onClose={() => setEditingQuote(null)}
+          onSaved={(updates) => {
+            updateQuote(editingQuote.id, updates)
+            setLiveLeads((prev) =>
+              prev.map((l) =>
+                String(l.id) === String(editingQuote.id) || l.leadReference === editingQuote.reference
+                  ? {
+                      ...l,
+                      customerName: updates.customerName || l.customerName,
+                      customerEmail: updates.customerEmail || l.customerEmail,
+                      customerPhone: updates.customerPhone || l.customerPhone,
+                      origin: updates.pickup || l.origin,
+                      destination: updates.destination || l.destination,
+                      estimatedInvestmentMin: Number(updates.estimatedInvestment) || l.estimatedInvestmentMin,
+                      estimatedInvestmentMax: Number(updates.estimatedInvestment) || l.estimatedInvestmentMax,
+                      notes: updates.notes ?? l.notes,
+                      payload: {
+                        ...(l.payload || {}),
+                        estimatedInvestment: {
+                          ...(l.payload?.estimatedInvestment || {}),
+                          vehicleName: updates.vehicleName || l.payload?.estimatedInvestment?.vehicleName,
+                          total: Number(updates.estimatedInvestment) || 0,
+                          minimumEstimate: Number(updates.estimatedInvestment) || 0,
+                          maximumEstimate: Number(updates.estimatedInvestment) || 0,
+                        },
+                      },
+                    }
+                  : l
+              )
+            )
+            if (selectedQuote && (selectedQuote.id === editingQuote.id || selectedQuote.reference === editingQuote.reference)) {
+              setSelectedQuote((prev) => prev ? { ...prev, ...updates, estimatedInvestment: Number(updates.estimatedInvestment) || prev.estimatedInvestment } : null)
+            }
+          }}
+        />
+      )}
     </>
   )
 }
+
+function EditQuoteModal({
+  quote,
+  onClose,
+  onSaved,
+}: {
+  quote: AdminQuote
+  onClose: () => void
+  onSaved: (updated: Partial<AdminQuote>) => void
+}) {
+  const [form, setForm] = useState({
+    estimatedInvestment: quote.estimatedInvestment || 0,
+    vehicleName: quote.vehicleName || 'Toyota HiAce Luxury Bus',
+    pickup: quote.pickup || '',
+    destination: quote.destination || '',
+    travelDate: quote.travelDate || '',
+    passengerCount: quote.passengerCount || 1,
+    tripType: quote.tripType || 'Charter Booking',
+    customerName: quote.customerName || '',
+    customerEmail: quote.customerEmail || '',
+    customerPhone: quote.customerPhone || '',
+    notes: quote.notes || '',
+  })
+  const [isSaving, setIsSaving] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSaving(true)
+    const investment = Number(form.estimatedInvestment) || 0
+    try {
+      const ok = await adminService.updateLead(quote.id, {
+        estimatedInvestment: investment,
+        estimatedInvestmentMin: investment,
+        estimatedInvestmentMax: investment,
+        vehicleName: form.vehicleName,
+        origin: form.pickup,
+        destination: form.destination,
+        journeyType: form.tripType,
+        customerName: form.customerName,
+        customerEmail: form.customerEmail,
+        customerPhone: form.customerPhone,
+        notes: form.notes,
+      })
+      if (ok) {
+        onSaved({
+          estimatedInvestment: investment,
+          vehicleName: form.vehicleName,
+          pickup: form.pickup,
+          destination: form.destination,
+          travelDate: form.travelDate,
+          passengerCount: form.passengerCount,
+          tripType: form.tripType,
+          customerName: form.customerName,
+          customerEmail: form.customerEmail,
+          customerPhone: form.customerPhone,
+          notes: form.notes,
+        })
+        onClose()
+      } else {
+        alert('Failed to save quote updates. Please try again.')
+      }
+    } catch (err) {
+      console.error('Error saving quote updates:', err)
+      alert('Failed to save quote updates.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <div
+      className="admin-modal-backdrop"
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1100,
+        background: 'rgba(15, 23, 42, 0.75)',
+        backdropFilter: 'blur(5px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem',
+      }}
+    >
+      <div
+        className="admin-modal"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%',
+          maxWidth: 620,
+          background: '#ffffff',
+          borderRadius: 8,
+          overflow: 'hidden',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+          maxHeight: '92vh',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div
+          className="admin-modal-header"
+          style={{
+            padding: '1.25rem 1.5rem',
+            borderBottom: '1px solid var(--adm-border)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--adm-text-1)' }}>
+              Edit Quote & Pricing
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--adm-text-3)', fontFamily: 'monospace' }}>
+              Reference: {quote.reference}
+            </div>
+          </div>
+          <button className="admin-btn admin-btn-icon admin-btn-ghost" onClick={onClose} style={{ borderRadius: '50%', width: 32, height: 32 }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ overflowY: 'auto', padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {/* Pricing Highlight Box */}
+          <div
+            style={{
+              background: 'rgba(239, 68, 68, 0.05)',
+              border: '1px solid rgba(239, 68, 68, 0.2)',
+              borderRadius: 6,
+              padding: '1rem',
+            }}
+          >
+            <label className="admin-label admin-label-req" style={{ color: 'var(--adm-accent)', fontWeight: 700 }}>
+              Estimated Investment / Price (₦)
+            </label>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <input
+                type="number"
+                min={0}
+                step={1000}
+                required
+                className="admin-input"
+                style={{ fontSize: 16, fontWeight: 700, color: 'var(--adm-accent)' }}
+                placeholder="e.g. 150000"
+                value={form.estimatedInvestment || ''}
+                onChange={(e) => setForm({ ...form, estimatedInvestment: Number(e.target.value) })}
+              />
+              <div style={{ fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--adm-text-2)' }}>
+                {fmtCurrency(Number(form.estimatedInvestment) || 0)}
+              </div>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--adm-text-3)', marginTop: 4 }}>
+              Setting this price enables customer checkout and updates quotation receipts.
+            </div>
+          </div>
+
+          {/* Customer Details */}
+          <div className="admin-grid-2" style={{ gap: '0.75rem' }}>
+            <div className="admin-form-group">
+              <label className="admin-label">Customer Name</label>
+              <input
+                className="admin-input"
+                value={form.customerName}
+                onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+              />
+            </div>
+            <div className="admin-form-group">
+              <label className="admin-label">Customer Email</label>
+              <input
+                className="admin-input"
+                type="email"
+                value={form.customerEmail}
+                onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="admin-grid-2" style={{ gap: '0.75rem' }}>
+            <div className="admin-form-group">
+              <label className="admin-label">Customer Phone</label>
+              <input
+                className="admin-input"
+                value={form.customerPhone}
+                onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
+              />
+            </div>
+            <div className="admin-form-group">
+              <label className="admin-label">Trip Type</label>
+              <select
+                className="admin-select"
+                value={form.tripType}
+                onChange={(e) => setForm({ ...form, tripType: e.target.value })}
+              >
+                <option value="Drop-Off">Drop-Off / One-Way</option>
+                <option value="Round-Trip">Round-Trip</option>
+                <option value="Full-Day Hire">Full-Day Hire (10h)</option>
+                <option value="Multi-Day Charter">Multi-Day Charter</option>
+                <option value="Airport Transfer">Airport Transfer</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Fleet Vehicle & Passengers */}
+          <div className="admin-grid-2" style={{ gap: '0.75rem' }}>
+            <div className="admin-form-group">
+              <label className="admin-label">Assigned Fleet Vehicle</label>
+              <select
+                className="admin-select"
+                value={form.vehicleName}
+                onChange={(e) => setForm({ ...form, vehicleName: e.target.value })}
+              >
+                {FLEET_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.label}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="admin-form-group">
+              <label className="admin-label">Passenger Count</label>
+              <input
+                type="number"
+                min={1}
+                max={60}
+                className="admin-input"
+                value={form.passengerCount}
+                onChange={(e) => setForm({ ...form, passengerCount: Number(e.target.value) })}
+              />
+            </div>
+          </div>
+
+          {/* Route & Dates */}
+          <div className="admin-grid-2" style={{ gap: '0.75rem' }}>
+            <div className="admin-form-group">
+              <label className="admin-label">Pickup Location</label>
+              <input
+                className="admin-input"
+                value={form.pickup}
+                onChange={(e) => setForm({ ...form, pickup: e.target.value })}
+              />
+            </div>
+            <div className="admin-form-group">
+              <label className="admin-label">Destination</label>
+              <input
+                className="admin-input"
+                value={form.destination}
+                onChange={(e) => setForm({ ...form, destination: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="admin-form-group">
+            <label className="admin-label">Travel Date / Schedule</label>
+            <input
+              type="date"
+              className="admin-input"
+              value={form.travelDate ? form.travelDate.slice(0, 10) : ''}
+              onChange={(e) => setForm({ ...form, travelDate: e.target.value })}
+            />
+          </div>
+
+          {/* Notes */}
+          <div className="admin-form-group">
+            <label className="admin-label">Internal Notes / Instructions</label>
+            <textarea
+              className="admin-textarea"
+              rows={2}
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              placeholder="Operational notes, pricing breakdown rationale…"
+            />
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '0.75rem',
+              marginTop: '0.5rem',
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--adm-border)',
+            }}
+          >
+            <button type="button" className="admin-btn admin-btn-ghost" onClick={onClose} disabled={isSaving}>
+              Cancel
+            </button>
+            <button type="submit" className="admin-btn admin-btn-primary" disabled={isSaving}>
+              {isSaving ? 'Saving…' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
