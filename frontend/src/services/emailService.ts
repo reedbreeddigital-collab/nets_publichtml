@@ -20,6 +20,8 @@ class EmailService {
     const estimate = totalNum ? `NGN ${Math.round(totalNum).toLocaleString('en-NG')}` : 'NGN ---,---'
     const pickup = payload.journeyInformation?.pickup?.address || payload.journeyInformation?.pickup || payload.origin || payload.pickup || 'Lagos, Nigeria'
     const destination = payload.journeyInformation?.destination?.address || payload.journeyInformation?.destination || payload.destination || 'Lagos, Nigeria'
+    const stopsRaw = payload.journeyInformation?.stops || payload.stops || payload.payload?.journeyInformation?.stops || []
+    const stops: any[] = Array.isArray(stopsRaw) ? stopsRaw : []
     const travelDateRaw = payload.journeyInformation?.travelDate || payload.travelDate
     const travelDate = travelDateRaw ? new Date(travelDateRaw).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Flexible Schedule'
     const departureTime = payload.journeyInformation?.departureTime ? ` at ${payload.journeyInformation.departureTime}` : ''
@@ -91,6 +93,7 @@ class EmailService {
           <p style="margin: 0 0 8px 0; font-size: 13.5px;"><strong>Quotation Reference:</strong> <code style="color: #C40000; font-weight: 700;">${quoteRef}</code></p>
           <p style="margin: 0 0 8px 0; font-size: 13.5px;"><strong>Service Type:</strong> ${journeyType} (${tripType})</p>
           <p style="margin: 0 0 8px 0; font-size: 13.5px;"><strong>Route:</strong> ${pickup} &rarr; ${destination} ${distanceKm > 0 ? `<span style="color: #64748B;">(${Math.round(distanceKm)} km)</span>` : ''}</p>
+          ${stops.length > 0 ? `<p style="margin: 0 0 8px 0; font-size: 13.5px;"><strong>En-Route Stops (${stops.length}):</strong> ${stops.map((s: any, i: number) => `Stop ${i+1}: ${s?.displayName || s?.address || (typeof s === 'string' ? s : `Stop ${i+1}`)}`).join(' &bull; ')}</p>` : ''}
           ${distanceKm > 0 ? `<p style="margin: 0 0 8px 0; font-size: 13.5px;"><strong>Calculated Distance:</strong> ${Math.round(distanceKm)} km</p>` : ''}
           <p style="margin: 0 0 8px 0; font-size: 13.5px;"><strong>Schedule:</strong> ${schedule}</p>
           <p style="margin: 0 0 8px 0; font-size: 13.5px;"><strong>Vehicle Category:</strong> ${vehicle}</p>
@@ -163,6 +166,8 @@ class EmailService {
     const vehicle = booking.vehicleName || booking.estimatedInvestment?.vehicleName || 'Executive Charter Fleet'
     const pickup = booking.pickup || booking.origin || 'Lagos, Nigeria'
     const destination = booking.destination || 'Lagos, Nigeria'
+    const bookingStopsRaw = booking.journeyInformation?.stops || booking.stops || booking.payload?.journeyInformation?.stops || []
+    const bookingStops: any[] = Array.isArray(bookingStopsRaw) ? bookingStopsRaw : []
     const travelDateRaw = booking.travelDate || booking.createdAt
     const travelDateFormatted = travelDateRaw ? new Date(travelDateRaw).toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }) : 'Confirmed'
     const amountNum = booking.totalAmount || booking.estimatedInvestment?.total || 0
@@ -226,6 +231,7 @@ class EmailService {
             <tr><td style="padding: 6px 0; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">Vehicle Assigned:</td><td style="padding: 6px 0; color: #0A3041; font-weight: 600; border-bottom: 1px solid #e2e8f0;">${vehicle}</td></tr>
             <tr><td style="padding: 6px 0; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">Pickup Location:</td><td style="padding: 6px 0; color: #0A3041; border-bottom: 1px solid #e2e8f0;">${pickup}</td></tr>
             <tr><td style="padding: 6px 0; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">Destination:</td><td style="padding: 6px 0; color: #0A3041; border-bottom: 1px solid #e2e8f0;">${destination}</td></tr>
+            ${bookingStops.length > 0 ? `<tr><td style="padding: 6px 0; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">En-Route Stops:</td><td style="padding: 6px 0; color: #0A3041; border-bottom: 1px solid #e2e8f0;">${bookingStops.map((s: any, i: number) => `Stop ${i+1}: ${s?.displayName || s?.address || (typeof s === 'string' ? s : `Stop ${i+1}`)}`).join('<br/>')}</td></tr>` : ''}
             ${distanceKm > 0 ? `<tr><td style="padding: 6px 0; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">Route Distance:</td><td style="padding: 6px 0; color: #0A3041; font-weight: 600; border-bottom: 1px solid #e2e8f0;">${Math.round(distanceKm)} km</td></tr>` : ''}
             <tr><td style="padding: 6px 0; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">Travel Date:</td><td style="padding: 6px 0; color: #0A3041; border-bottom: 1px solid #e2e8f0;">${travelDateFormatted}</td></tr>
             ${retentionDays > 0 ? `
@@ -286,6 +292,8 @@ class EmailService {
     const estimate = payload.estimatedInvestment?.total ? `NGN ${Math.round(payload.estimatedInvestment.total).toLocaleString('en-NG')}` : 'NGN ---,---'
     const pickup = payload.journeyInformation?.pickup?.address || 'N/A'
     const destination = payload.journeyInformation?.destination?.address || 'N/A'
+    const internalStopsRaw = payload.journeyInformation?.stops || payload.stops || payload.payload?.journeyInformation?.stops || []
+    const internalStops: any[] = Array.isArray(internalStopsRaw) ? internalStopsRaw : []
     const travelDateRaw = payload.journeyInformation?.travelDate
     const travelDate = travelDateRaw ? new Date(travelDateRaw).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'
     const returnDateRaw = payload.journeyInformation?.returnDate
@@ -347,6 +355,7 @@ class EmailService {
             <tr><td style="padding: 6px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #475569;">Client Phone:</td><td style="padding: 6px 0; border-bottom: 1px solid #e2e8f0; color: #0A3041;">${customerPhone}</td></tr>
             <tr><td style="padding: 6px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #475569;">Journey Type:</td><td style="padding: 6px 0; border-bottom: 1px solid #e2e8f0; color: #0A3041;">${journeyType} (${tripType})</td></tr>
             <tr><td style="padding: 6px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #475569;">Route:</td><td style="padding: 6px 0; border-bottom: 1px solid #e2e8f0; color: #0A3041;">${pickup} &rarr; ${destination}</td></tr>
+            ${internalStops.length > 0 ? `<tr><td style="padding: 6px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #475569;">En-Route Stops:</td><td style="padding: 6px 0; border-bottom: 1px solid #e2e8f0; color: #0A3041;">${internalStops.map((s: any, i: number) => `Stop ${i+1}: ${s?.displayName || s?.address || (typeof s === 'string' ? s : `Stop ${i+1}`)}`).join('<br/>')}</td></tr>` : ''}
             ${distanceKm > 0 ? `<tr><td style="padding: 6px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #475569;">Route Distance:</td><td style="padding: 6px 0; border-bottom: 1px solid #e2e8f0; color: #0A3041; font-weight: 600;">${Math.round(distanceKm)} km</td></tr>` : ''}
             <tr><td style="padding: 6px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #475569;">Schedule:</td><td style="padding: 6px 0; border-bottom: 1px solid #e2e8f0; color: #0A3041;">${schedule}</td></tr>
             <tr><td style="padding: 6px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #475569;">Vehicle:</td><td style="padding: 6px 0; border-bottom: 1px solid #e2e8f0; color: #0A3041;">${vehicle}</td></tr>

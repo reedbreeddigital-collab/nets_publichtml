@@ -4,7 +4,7 @@ import { useJourneyStore } from '@/store/useJourneyStore'
 
 export function Step3Review() {
   const { 
-    pickup, destination, travelDate, departureTime,
+    pickup, destination, stops, travelDate, departureTime,
     passengers, selectedVehicleId, tripType,
     customerPricingView, estimatedInvestment, calculatePricing,
     customerDetails
@@ -28,14 +28,46 @@ export function Step3Review() {
 
       <div style={{ background: '#f8fafc', border: '1px solid var(--color-nets-border)', borderRadius: '8px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-          <div>
-            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-nets-text-3)', textTransform: 'uppercase' }}>Pickup</div>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-nets-navy-dark)', fontWeight: 500 }}>{pickup?.displayName || pickup?.address}</div>
+        {/* Route Details */}
+        <div>
+          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-nets-text-3)', textTransform: 'uppercase', marginBottom: '0.75rem' }}>
+            Itinerary Route {stops && stops.length > 0 ? `(${stops.length} Intermediate ${stops.length === 1 ? 'Stop' : 'Stops'})` : ''}
           </div>
-          <div>
-            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-nets-text-3)', textTransform: 'uppercase' }}>Destination</div>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-nets-navy-dark)', fontWeight: 500 }}>{destination?.displayName || destination?.address}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {/* Pickup */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', borderRadius: '50%', background: '#10b981', color: '#fff', fontSize: '0.6875rem', fontWeight: 700, flexShrink: 0, marginTop: 1 }}>
+                A
+              </span>
+              <div>
+                <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-nets-text-3)', textTransform: 'uppercase' }}>Pickup Location</div>
+                <div style={{ fontSize: '0.875rem', color: 'var(--color-nets-navy-dark)', fontWeight: 500 }}>{pickup?.displayName || pickup?.address}</div>
+              </div>
+            </div>
+
+            {/* Intermediate Stops */}
+            {stops && stops.map((stop, idx) => (
+              <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem', marginLeft: '1px' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '50%', background: 'var(--color-nets-navy-dark)', color: '#fff', fontSize: '0.6875rem', fontWeight: 700, flexShrink: 0, marginTop: 2 }}>
+                  {idx + 1}
+                </span>
+                <div>
+                  <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-nets-text-3)', textTransform: 'uppercase' }}>Intermediate Stop {idx + 1}</div>
+                  <div style={{ fontSize: '0.875rem', color: 'var(--color-nets-navy-dark)', fontWeight: 500 }}>{stop?.displayName || stop?.address}</div>
+                </div>
+              </div>
+            ))}
+
+            {/* Destination */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--color-nets-red)', color: '#fff', fontSize: '0.6875rem', fontWeight: 700, flexShrink: 0, marginTop: 1 }}>
+                B
+              </span>
+              <div>
+                <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-nets-text-3)', textTransform: 'uppercase' }}>Drop-off Destination</div>
+                <div style={{ fontSize: '0.875rem', color: 'var(--color-nets-navy-dark)', fontWeight: 500 }}>{destination?.displayName || destination?.address}</div>
+              </div>
+            </div>
           </div>
         </div>
 

@@ -245,6 +245,7 @@ export function QuotePaymentPage() {
   const amount = lead.estimatedInvestmentMax || lead.estimatedInvestmentMin || 0
   const journeyInfo = lead.payload?.journeyInformation || {}
   const investInfo = lead.payload?.estimatedInvestment || {}
+  const stops: any[] = Array.isArray(journeyInfo.stops) ? journeyInfo.stops : []
 
   // Parse Schedule
   const travelDateRaw = journeyInfo.travelDate || lead.createdAt
@@ -408,18 +409,43 @@ export function QuotePaymentPage() {
               </h2>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 4, flexShrink: 0 }}>
-                    <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#16A34A', border: '2px solid #ffffff', boxShadow: '0 0 0 2px #16A34A' }} />
-                    <div style={{ width: 2, height: 40, background: '#E2E8F0', margin: '4px 0' }} />
-                    <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#C0272D', border: '2px solid #ffffff', boxShadow: '0 0 0 2px #C0272D' }} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {/* Pickup */}
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 4, flexShrink: 0, width: 20 }}>
+                      <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#16A34A', border: '2px solid #ffffff', boxShadow: '0 0 0 2px #16A34A' }} />
+                      <div style={{ width: 2, minHeight: 28, flex: 1, background: '#CBD5E1', margin: '4px 0' }} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0, paddingBottom: '0.25rem' }}>
                       <span style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748B', letterSpacing: '0.05em' }}>Pickup Location</span>
                       <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0F172A', marginTop: 2, wordBreak: 'break-word' }}>{lead.origin || 'Lagos, Nigeria'}</p>
                     </div>
-                    <div>
+                  </div>
+
+                  {/* Intermediate Stops */}
+                  {stops.map((stop: any, idx: number) => (
+                    <div key={idx} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 3, flexShrink: 0, width: 20 }}>
+                        <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#0D1060', color: '#ffffff', fontSize: '10px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {idx + 1}
+                        </div>
+                        <div style={{ width: 2, minHeight: 28, flex: 1, background: '#CBD5E1', margin: '4px 0' }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0, paddingBottom: '0.25rem' }}>
+                        <span style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', color: '#0D1060', letterSpacing: '0.05em' }}>Intermediate Stop {idx + 1}</span>
+                        <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0F172A', marginTop: 2, wordBreak: 'break-word' }}>
+                          {stop?.displayName || stop?.address || (typeof stop === 'string' ? stop : 'Intermediate Stop')}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Destination */}
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 4, flexShrink: 0, width: 20 }}>
+                      <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#C0272D', border: '2px solid #ffffff', boxShadow: '0 0 0 2px #C0272D' }} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748B', letterSpacing: '0.05em' }}>Destination</span>
                       <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0F172A', marginTop: 2, wordBreak: 'break-word' }}>
                         {lead.destination || 'Lagos, Nigeria'}

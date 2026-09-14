@@ -69,6 +69,8 @@ export function CRMPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [closerFilter, setCloserFilter] = useState('all')
+  const [isAutoAssigning, setIsAutoAssigning] = useState(false)
   const [selectedLead, setSelectedLead] = useState<AdminLead | null>(null)
   const [noteInput, setNoteInput] = useState('')
   const [noteSaved, setNoteSaved] = useState(false)
@@ -157,10 +159,30 @@ export function CRMPage() {
   const handleUpdateAssignment = async (id: number | string, assignedTo: string) => {
     const success = await adminService.updateLeadAssignment(id, assignedTo)
     if (success) {
-      setLeads(prev => prev.map(l => l.id === id ? { ...l, assignedTo } : l))
-      if (selectedLead && selectedLead.id === id) {
-        setSelectedLead({ ...selectedLead, assignedTo })
+      if (assignedTo === 'auto' || assignedTo === 'round-robin') {
+        const updatedList = await adminService.getLeads()
+        if (updatedList) {
+          setLeads(updatedList)
+          if (selectedLead && selectedLead.id === id) {
+            const reloaded = updatedList.find(l => String(l.id) === String(id))
+            if (reloaded) setSelectedLead(reloaded)
+          }
+        }
+      } else {
+        setLeads(prev => prev.map(l => l.id === id ? { ...l, assignedTo } : l))
+        if (selectedLead && selectedLead.id === id) {
+          setSelectedLead({ ...selectedLead, assignedTo })
+        }
       }
+    }
+  }
+
+  const handleAutoAssignAll = async () => {
+    setIsAutoAssigning(true)
+    const res = await adminService.autoAssignUnassignedLeads()
+    setIsAutoAssigning(false)
+    if (res.success) {
+      loadLeads()
     }
   }
 
@@ -184,6 +206,14 @@ export function CRMPage() {
         return false
       }
 
+      if (closerFilter !== 'all') {
+        if (closerFilter === 'unassigned') {
+          if (l.assignedTo && l.assignedTo !== '') return false
+        } else if (String(l.assignedTo) !== String(closerFilter)) {
+          return false
+        }
+      }
+
       const name = String(l?.customerName || '').toLowerCase()
       const email = String(l?.customerEmail || '').toLowerCase()
       const ref = String(l?.leadReference || '').toLowerCase()
@@ -204,7 +234,7 @@ export function CRMPage() {
       
       return matchSearch && (leadSt === filtSt)
     })
-  }, [leads, search, statusFilter, session.user])
+  }, [leads, search, statusFilter, closerFilter, session.user])
 
   // Pagination calculations
   const totalItems = filteredLeads.length
@@ -219,6 +249,7 @@ export function CRMPage() {
   const wonCount = validLeads.filter(l => isLeadWon(l)).length
   const winRate = validLeads.length > 0 ? Math.round((wonCount / validLeads.length) * 100) : 0
   const invalidCount = leads.filter(l => String(l.crmStatus || l.status).toLowerCase() === 'invalid').length
+  const unassignedCount = leads.filter(l => !l.assignedTo || l.assignedTo === '').length
 
   const contactedLeads = validLeads.filter(l => l.responseTimeSec !== undefined && l.responseTimeSec > 0)
   const avgResponseTimeSec = contactedLeads.length > 0
@@ -251,7 +282,19 @@ export function CRMPage() {
             Track customer requests, manage quotes, and convert leads into active bookings.
           </div>
         </div>
-        <div className="admin-page-actions">
+        <div className="admin-page-actions" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          {canAssign && unassignedCount > 0 && (
+            <button
+              onClick={handleAutoAssignAll}
+              disabled={isAutoAssigning}
+              className="admin-btn admin-btn-primary admin-btn-sm"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+              title="Automatically distribute all unassigned leads across active sales closers using round robin"
+            >
+              <Users size={13} />
+              {isAutoAssigning ? 'Assigning…' : `Auto-Assign (${unassignedCount})`}
+            </button>
+          )}
           <button
             onClick={loadLeads}
             disabled={loading}
@@ -307,16 +350,36 @@ export function CRMPage() {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
-          {CRM_STATUS_FILTERS.map(st => (
-            <button
-              key={st}
-              onClick={() => setStatusFilter(st)}
-              className={`admin-btn admin-btn-sm ${statusFilter === st ? 'admin-btn-primary' : 'admin-btn-ghost'}`}
-            >
-              {st === 'all' ? 'All Leads' : (statusBadges[st]?.label || st)}
-            </button>
-          ))}
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+            {CRM_STATUS_FILTERS.map(st => (
+              <button
+                key={st}
+                onClick={() => setStatusFilter(st)}
+                className={`admin-btn admin-btn-sm ${statusFilter === st ? 'admin-btn-primary' : 'admin-btn-ghost'}`}
+              >
+                {st === 'all' ? 'All Leads' : (statusBadges[st]?.label || st)}
+              </button>
+            ))}
+          </div>
+
+          {canAssign && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginLeft: 'auto' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--adm-text-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Closer:</span>
+              <select
+                className="admin-select"
+                value={closerFilter}
+                onChange={e => setCloserFilter(e.target.value)}
+                style={{ padding: '0.3rem 0.625rem', fontSize: 12, minWidth: 140, height: 32 }}
+              >
+                <option value="all">All Closers</option>
+                <option value="unassigned">Unassigned ({unassignedCount})</option>
+                {users.filter(u => u.role === 'sales_closer').map(u => (
+                  <option key={u.id} value={u.id}>{u.fullName}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
@@ -382,7 +445,16 @@ export function CRMPage() {
                           <span style={{ color: 'var(--adm-text-3)', marginLeft: 4 }}>• {l.payload?.journeyInformation?.travelDate ? new Date(l.payload.journeyInformation.travelDate).toLocaleDateString('en-NG', {day:'numeric', month:'short'}) : 'No date'}</span>
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--adm-text-3)', marginTop: 2 }}>
-                          {l.origin ? `${l.origin.split(',')[0]} → ${l.destination?.split(',')[0] || ''}` : 'Charter Route'}
+                          {l.origin ? (
+                            <>
+                              <span>{l.origin.split(',')[0]} → {l.destination?.split(',')[0] || ''}</span>
+                              {Array.isArray(l.payload?.journeyInformation?.stops) && l.payload.journeyInformation.stops.length > 0 && (
+                                <span style={{ marginLeft: 4, color: 'var(--adm-accent)', fontWeight: 600 }}>
+                                  (+{l.payload.journeyInformation.stops.length} {l.payload.journeyInformation.stops.length === 1 ? 'stop' : 'stops'})
+                                </span>
+                              )}
+                            </>
+                          ) : 'Charter Route'}
                         </div>
                       </td>
                       <td style={{ fontWeight: 700, color: 'var(--adm-text-1)' }}>
@@ -780,9 +852,29 @@ export function CRMPage() {
                 {/* Route */}
                 <div style={{ display: 'flex', gap: '0.5rem', fontSize: 12 }}>
                   <MapPin size={14} color="var(--adm-accent)" style={{ flexShrink: 0, marginTop: 2 }} />
-                  <div>
-                    <div style={{ color: 'var(--adm-text-2)' }}><strong style={{ color: 'var(--adm-text-1)' }}>From:</strong> {selectedLead.origin || 'Lagos'}</div>
-                    <div style={{ color: 'var(--adm-text-2)', marginTop: 2 }}><strong style={{ color: 'var(--adm-text-1)' }}>To:</strong> {selectedLead.destination || 'Lagos'}</div>
+                  <div style={{ width: '100%' }}>
+                    <div style={{ color: 'var(--adm-text-2)' }}>
+                      <strong style={{ color: 'var(--adm-text-1)' }}>From:</strong> {selectedLead.origin || 'Lagos'}
+                    </div>
+
+                    {Array.isArray(selectedLead.payload?.journeyInformation?.stops) && selectedLead.payload.journeyInformation.stops.length > 0 && (
+                      <div style={{ margin: '6px 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {selectedLead.payload.journeyInformation.stops.map((stop: any, idx: number) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--adm-text-2)' }}>
+                            <span style={{ background: 'rgba(26, 31, 168, 0.08)', color: 'var(--adm-accent)', padding: '1px 6px', borderRadius: 10, fontWeight: 700, fontSize: 10, flexShrink: 0 }}>
+                              Stop {idx + 1}
+                            </span>
+                            <span style={{ wordBreak: 'break-word' }}>
+                              {stop?.displayName || stop?.address || (typeof stop === 'string' ? stop : `Intermediate Stop ${idx + 1}`)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div style={{ color: 'var(--adm-text-2)', marginTop: 2 }}>
+                      <strong style={{ color: 'var(--adm-text-1)' }}>To:</strong> {selectedLead.destination || 'Lagos'}
+                    </div>
                     {distanceKm > 0 && (
                       <div style={{ color: 'var(--adm-text-2)', marginTop: 4 }}>
                         <strong style={{ color: 'var(--adm-text-1)' }}>Distance:</strong> {Math.round(distanceKm)} km
@@ -1000,6 +1092,7 @@ export function CRMPage() {
                     style={{ minWidth: 170 }}
                   >
                     <option value="">Unassigned</option>
+                    <option value="auto">✨ Auto Assign (Round Robin)</option>
                     {users.filter(u => u.role === 'sales_closer').map(u => (
                       <option key={u.id} value={u.id}>{u.fullName}</option>
                     ))}

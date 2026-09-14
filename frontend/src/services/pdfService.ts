@@ -60,6 +60,7 @@ class PDFService {
       const vehicle = payload.estimatedInvestment?.vehicleName || 'Standard Vehicle'
       const pickup = payload.journeyInformation?.pickup?.address || 'N/A'
       const destination = payload.journeyInformation?.destination?.address || 'N/A'
+      const stops: any[] = Array.isArray(payload.journeyInformation?.stops) ? payload.journeyInformation.stops : []
       const distance = payload.journeyInformation?.distanceKm ? `${payload.journeyInformation.distanceKm} km` : 'N/A'
       const passengers = payload.journeyInformation?.passengerCount || 'N/A'
       const travelDate = payload.journeyInformation?.travelDate 
@@ -143,11 +144,24 @@ class PDFService {
       doc.text(ref, 114, y + 16)
       doc.text(new Date().toLocaleDateString('en-NG'), 165, y + 16)
 
+      // Calculate stops height if any
+      let stopsExtraHeight = 0
+      let splitStops: string[] = []
+      if (stops.length > 0) {
+        const stopSummaries = stops.map((s: any, i: number) => {
+          const addr = s?.displayName || s?.address || (typeof s === 'string' ? s : `Stop ${i+1}`)
+          return `Stop ${i + 1}: ${addr}`
+        }).join('   •   ')
+        splitStops = doc.splitTextToSize(stopSummaries, 166)
+        stopsExtraHeight = 10 + (splitStops.length * 4.5)
+      }
+      const cardHeight = 105 + stopsExtraHeight
+
       // Main Itinerary Card
       y += 34
       doc.setFillColor(255, 255, 255)
       doc.setDrawColor(226, 232, 240)
-      doc.roundedRect(14, y, 182, 105, 3, 3, 'FD')
+      doc.roundedRect(14, y, 182, cardHeight, 3, 3, 'FD')
       
       // Card Header
       doc.setFillColor(248, 250, 252)
@@ -197,7 +211,25 @@ class PDFService {
       doc.text(splitPickup, 20, innerY + 5)
       doc.text(splitDropoff, 114, innerY + 5)
 
-      innerY += 20
+      if (stops.length > 0) {
+        innerY += 16
+        doc.setDrawColor(241, 245, 249)
+        doc.line(20, innerY, 186, innerY)
+        innerY += 6
+        doc.setTextColor(100, 116, 139)
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'bold')
+        doc.text(`EN-ROUTE STOPS (${stops.length})`, 20, innerY)
+        
+        doc.setTextColor(30, 41, 59)
+        doc.setFontSize(8.5)
+        doc.setFont('helvetica', 'normal')
+        doc.text(splitStops, 20, innerY + 5)
+        innerY += (splitStops.length * 4.5) + 3
+      } else {
+        innerY += 20
+      }
+
       doc.setDrawColor(241, 245, 249)
       doc.line(20, innerY, 186, innerY)
       
@@ -217,7 +249,7 @@ class PDFService {
       doc.text(distance, 120, innerY + 5)
 
       // Payment Summary Card
-      y += 115
+      y += cardHeight + 10
       doc.setFillColor(248, 250, 252)
       doc.setDrawColor(226, 232, 240)
       doc.roundedRect(14, y, 182, 36, 3, 3, 'FD')

@@ -61,7 +61,11 @@ export function JourneyPlannerPage() {
     fetchSettings()
   }, [])
 
-  const isStep1Complete = state.pickup && state.destination
+  const isStep1Complete = Boolean(
+    state.pickup &&
+    state.destination &&
+    (!state.stops || state.stops.length === 0 || state.stops.every(s => s && s.address && s.address.trim() !== ''))
+  )
   const isStep2Complete = state.passengers && state.travelDate && state.departureTime && state.selectedVehicleId && state.additionalVehicleIds.every(id => id !== '') && (state.tripType === 'Recurring' ? state.multiDayItinerary.every(d => d.date) : true)
 
   const isComplete = currentStep === 1 ? isStep1Complete : currentStep === 2 ? isStep2Complete : true

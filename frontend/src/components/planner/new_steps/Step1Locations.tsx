@@ -1,11 +1,23 @@
-import { motion } from 'framer-motion'
-import { useJourneyStore } from '@/store/useJourneyStore'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Plus, Trash2, ChevronUp, ChevronDown, MapPin } from 'lucide-react'
+import { useJourneyStore, LocationData } from '@/store/useJourneyStore'
 import { GooglePlacesAutocomplete } from '../GooglePlacesAutocomplete'
 
 export function Step1Locations() {
-  const { pickup, setPickup, destination, setDestination, intent, setIntent, nextStep } = useJourneyStore()
+  const { 
+    pickup, setPickup, 
+    destination, setDestination, 
+    stops, addStop, updateStop, removeStop, reorderStops,
+    intent, setIntent 
+  } = useJourneyStore()
 
-  const isComplete = pickup && destination
+  const maxStops = 5
+
+  const handleAddStop = () => {
+    if (stops.length < maxStops) {
+      addStop({ address: '', lat: 0, lng: 0 })
+    }
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -14,7 +26,7 @@ export function Step1Locations() {
           Where are you heading?
         </h1>
         <p style={{ color: 'var(--color-nets-text-2)' }}>
-          Enter your pickup and drop-off locations to get started.
+          Enter your pickup, intermediate stops (if any), and drop-off locations to get started.
         </p>
       </div>
 
@@ -43,10 +55,14 @@ export function Step1Locations() {
           </select>
         </div>
 
+        {/* Pickup Location */}
         <div>
-          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.75rem', color: 'var(--color-nets-navy-dark)' }}>
-            Pickup Location
-          </label>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-nets-navy-dark)' }}>
+              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }} />
+              Pickup Location
+            </label>
+          </div>
           <GooglePlacesAutocomplete
             value={pickup?.address || null}
             onChange={() => {}}
@@ -56,10 +72,116 @@ export function Step1Locations() {
           />
         </div>
 
+        {/* Intermediate Stops Section */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+          <AnimatePresence>
+            {stops.map((stop, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                transition={{ duration: 0.2 }}
+                style={{
+                  background: 'var(--color-nets-light)',
+                  border: '1px solid var(--color-nets-border)',
+                  borderRadius: '6px',
+                  padding: '0.875rem 1rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-nets-navy-dark)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '50%', background: 'var(--color-nets-navy-dark)', color: '#fff', fontSize: '0.6875rem', fontWeight: 700 }}>
+                      {index + 1}
+                    </span>
+                    Intermediate Stop {index + 1}
+                  </span>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    {index > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => reorderStops(index, index - 1)}
+                        className="btn btn-ghost"
+                        style={{ padding: '0.25rem', height: 'auto', color: 'var(--color-nets-text-2)' }}
+                        title="Move Stop Up"
+                      >
+                        <ChevronUp size={14} />
+                      </button>
+                    )}
+                    {index < stops.length - 1 && (
+                      <button
+                        type="button"
+                        onClick={() => reorderStops(index, index + 1)}
+                        className="btn btn-ghost"
+                        style={{ padding: '0.25rem', height: 'auto', color: 'var(--color-nets-text-2)' }}
+                        title="Move Stop Down"
+                      >
+                        <ChevronDown size={14} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeStop(index)}
+                      className="btn btn-ghost"
+                      style={{ padding: '0.25rem', height: 'auto', color: 'var(--color-nets-red)', marginLeft: '0.25rem' }}
+                      title="Remove this stop"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                <GooglePlacesAutocomplete
+                  value={stop?.address || null}
+                  onChange={(val) => updateStop(index, { ...stop, address: val })}
+                  onLocationSelect={(loc) => updateStop(index, loc)}
+                  placeholder={`Enter Stop ${index + 1} address or landmark`}
+                  className="input"
+                />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+
+          {/* Add Stop Button */}
+          {stops.length < maxStops && (
+            <button
+              type="button"
+              onClick={handleAddStop}
+              className="btn btn-outline"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                padding: '0.625rem 1rem',
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                borderRadius: '6px',
+                border: '1.5px dashed var(--color-nets-border)',
+                background: '#ffffff',
+                color: 'var(--color-nets-navy-dark)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <Plus size={14} color="var(--color-nets-red)" />
+              <span>Add Stop along Route {stops.length > 0 ? `(${stops.length}/${maxStops})` : ''}</span>
+            </button>
+          )}
+        </div>
+
+        {/* Drop-off Destination */}
         <div>
-          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.75rem', color: 'var(--color-nets-navy-dark)' }}>
-            Destination
-          </label>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-nets-navy-dark)' }}>
+              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-nets-red)' }} />
+              Final Destination (Drop-off)
+            </label>
+          </div>
           <GooglePlacesAutocomplete
             value={destination?.address || null}
             onChange={() => {}}

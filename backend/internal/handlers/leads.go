@@ -10,10 +10,50 @@ import (
 	"strings"
 	"time"
 
+	"gorm.io/gorm"
+
 	"nets-logistics-backend/internal/database"
 	"nets-logistics-backend/internal/models"
 	"nets-logistics-backend/internal/response"
 )
+
+// GetNextRoundRobinCloser selects the active sales closer who was assigned a lead least recently,
+// guaranteeing a 100% fair and balanced rotation across all sales closers without streaks.
+func GetNextRoundRobinCloser(db *gorm.DB) (string, error) {
+	if db == nil {
+		return "", fmt.Errorf("database unavailable")
+	}
+
+	var closers []models.User
+	if err := db.Where("role = ? AND status = ?", "sales_closer", "active").Order("id ASC").Find(&closers).Error; err != nil || len(closers) == 0 {
+		// Fallback to any user with role = 'sales_closer' if status is missing
+		if err := db.Where("role = ?", "sales_closer").Order("id ASC").Find(&closers).Error; err != nil || len(closers) == 0 {
+			return "", fmt.Errorf("no sales closers configured")
+		}
+	}
+
+	var chosenID string
+	var oldestTime *time.Time
+
+	for _, c := range closers {
+		var lastLead models.Lead
+		err := db.Where("assigned_to = ?", c.ID).Order("created_at DESC").First(&lastLead).Error
+		if err != nil {
+			// This closer has never received a lead; prioritize immediately
+			return c.ID, nil
+		}
+
+		if oldestTime == nil || lastLead.CreatedAt.Before(*oldestTime) {
+			oldestTime = &lastLead.CreatedAt
+			chosenID = c.ID
+		}
+	}
+
+	if chosenID != "" {
+		return chosenID, nil
+	}
+	return closers[0].ID, nil
+}
 
 type LeadHandler struct{}
 
@@ -134,20 +174,22 @@ func (h *LeadHandler) Store(w http.ResponseWriter, r *http.Request) {
 		assignedTo := ""
 		if customerEmail != "" {
 			var existing models.Lead
-			// Check if same customer requested a quote today and it is assigned
+			// Check if same customer requested a quote today and verify closer is active
 			err := db.Where("customer_email = ? AND DATE(created_at) = CURDATE() AND assigned_to != ''", customerEmail).
 				Order("created_at DESC").First(&existing).Error
 			if err == nil && existing.AssignedTo != "" {
-				assignedTo = existing.AssignedTo
+				var u models.User
+				if db.Where("id = ? AND status = ?", existing.AssignedTo, "active").First(&u).Error == nil {
+					assignedTo = existing.AssignedTo
+				}
 			}
 		}
 
 		if assignedTo != "" {
 			lead.AssignedTo = assignedTo
 		} else {
-			var closer models.User
-			if err := db.Where("role = ?", "sales_closer").Order("RAND()").First(&closer).Error; err == nil {
-				lead.AssignedTo = closer.ID
+			if closerID, err := GetNextRoundRobinCloser(db); err == nil && closerID != "" {
+				lead.AssignedTo = closerID
 			}
 		}
 
@@ -382,8 +424,14 @@ func (h *LeadHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if body.AssignedTo != nil {
-		lead.AssignedTo = *body.AssignedTo
-		updates["assigned_to"] = *body.AssignedTo
+		targetCloser := *body.AssignedTo
+		if targetCloser == "auto" || targetCloser == "round-robin" {
+			if nextCloser, err := GetNextRoundRobinCloser(db); err == nil && nextCloser != "" {
+				targetCloser = nextCloser
+			}
+		}
+		lead.AssignedTo = targetCloser
+		updates["assigned_to"] = targetCloser
 	}
 	if body.Notes != nil {
 		lead.Notes = *body.Notes
@@ -571,3 +619,32 @@ func (h *LeadHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		"message": "Lead deleted successfully",
 	})
 }
+
+// AutoAssignUnassigned POST /api/v1/leads/auto-assign
+func (h *LeadHandler) AutoAssignUnassigned(w http.ResponseWriter, r *http.Request) {
+	db := database.DB
+	if db == nil {
+		response.Error(w, http.StatusInternalServerError, "Database connection unavailable")
+		return
+	}
+
+	var unassignedLeads []models.Lead
+	if err := db.Where("assigned_to = '' OR assigned_to IS NULL").Order("id ASC").Find(&unassignedLeads).Error; err != nil {
+		response.Error(w, http.StatusInternalServerError, fmt.Sprintf("Failed to query unassigned leads: %v", err))
+		return
+	}
+
+	assignedCount := 0
+	for _, l := range unassignedLeads {
+		if closerID, err := GetNextRoundRobinCloser(db); err == nil && closerID != "" {
+			db.Model(&l).Update("assigned_to", closerID)
+			assignedCount++
+		}
+	}
+
+	response.JSON(w, http.StatusOK, map[string]interface{}{
+		"message":       fmt.Sprintf("Successfully auto-assigned %d leads", assignedCount),
+		"assignedCount": assignedCount,
+	})
+}
+

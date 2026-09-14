@@ -27,7 +27,9 @@ export function JourneySummary() {
           
           <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
             <div style={{ position: 'absolute', left: '-31px', width: '12px', height: '12px', borderRadius: '50%', background: state.pickup ? 'var(--color-nets-success)' : '#fff', border: '2px solid var(--color-nets-border)' }} />
-            <span style={{ paddingLeft: '0.25rem', fontSize: '0.8125rem', fontWeight: 600, color: state.pickup ? 'var(--color-nets-navy-dark)' : 'var(--color-nets-text-3)' }}>Journey Locations</span>
+            <span style={{ paddingLeft: '0.25rem', fontSize: '0.8125rem', fontWeight: 600, color: state.pickup ? 'var(--color-nets-navy-dark)' : 'var(--color-nets-text-3)' }}>
+              Journey Locations {state.stops && state.stops.length > 0 ? `(${state.stops.length} ${state.stops.length === 1 ? 'Stop' : 'Stops'})` : ''}
+            </span>
           </div>
           
           <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
@@ -61,6 +63,14 @@ export function JourneySummary() {
           <span style={{ fontSize: '0.8125rem', color: 'var(--color-nets-text-2)' }}>Trip Type</span>
           <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-nets-navy-dark)' }}>{state.tripType || 'Pending'}</span>
         </div>
+        {state.stops && state.stops.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.8125rem', color: 'var(--color-nets-text-2)' }}>En-Route Stops</span>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-nets-navy-dark)' }}>
+              {state.stops.length} {state.stops.length === 1 ? 'stop' : 'stops'}
+            </span>
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '0.8125rem', color: 'var(--color-nets-text-2)' }}>Travel Date</span>
           <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-nets-navy-dark)' }}>{formattedDate}</span>

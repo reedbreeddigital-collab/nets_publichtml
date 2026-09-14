@@ -409,6 +409,22 @@ export class AdminService {
   }
 
   /**
+   * Auto-assign all unassigned leads across active sales closers using round-robin.
+   */
+  public async autoAssignUnassignedLeads(): Promise<{ success: boolean; assignedCount?: number }> {
+    try {
+      const res = await fetch(`${API_URL}/leads/auto-assign`, {
+        method: 'POST',
+      })
+      const json = await res.json()
+      return { success: res.ok, assignedCount: json.data?.assignedCount || 0 }
+    } catch (err) {
+      console.error('⚠️ [ADMIN SERVICE] Error auto-assigning leads:', err)
+      return { success: false }
+    }
+  }
+
+  /**
    * Delete a lead/quote.
    */
   public async deleteLead(id: number | string): Promise<boolean> {

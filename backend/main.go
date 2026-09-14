@@ -48,6 +48,15 @@ func main() {
 			return
 		}
 
+		if path == "/api/v1/leads/auto-assign" {
+			if r.Method == http.MethodPost {
+				leadHandler.AutoAssignUnassigned(w, r)
+			} else {
+				response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
+			}
+			return
+		}
+
 		if strings.HasPrefix(path, "/api/v1/leads/") {
 			switch r.Method {
 			case http.MethodGet:
