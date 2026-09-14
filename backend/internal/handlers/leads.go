@@ -150,6 +150,13 @@ func (h *LeadHandler) Store(w http.ResponseWriter, r *http.Request) {
 				lead.AssignedTo = closer.ID
 			}
 		}
+
+		if lead.Status == "paid" || lead.Status == "converted" || lead.CrmStatus == "Won & Paid" {
+			now := time.Now()
+			lead.ClosedAt = &now
+			zeroSec := int64(0)
+			lead.CloseTimeSec = &zeroSec
+		}
 		
 		if err := db.Create(&lead).Error; err != nil {
 			response.Error(w, http.StatusInternalServerError, fmt.Sprintf("Failed to store lead in DB: %v", err))
@@ -295,6 +302,7 @@ func (h *LeadHandler) Update(w http.ResponseWriter, r *http.Request) {
 		EstimatedInvestment    *float64 `json:"estimatedInvestment"`
 		VehicleName            *string  `json:"vehicleName"`
 		Payload                any      `json:"payload"`
+		ChangedBy              *string  `json:"changedBy"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		response.Error(w, http.StatusBadRequest, "Invalid JSON payload")
@@ -317,6 +325,30 @@ func (h *LeadHandler) Update(w http.ResponseWriter, r *http.Request) {
 		updates["crm_status"] = body.CrmStatus
 	}
 
+	// 1. Response Time: Record when a sales closer first reaches out (moves status away from 'New Lead')
+	if body.CrmStatus != "" && !strings.EqualFold(body.CrmStatus, "New Lead") && lead.FirstContactedAt == nil {
+		now := time.Now()
+		lead.FirstContactedAt = &now
+		updates["first_contacted_at"] = now
+
+		diffSec := int64(now.Sub(lead.CreatedAt).Seconds())
+		if diffSec < 0 {
+			diffSec = 0
+		}
+		lead.ResponseTimeSec = &diffSec
+		updates["response_time_sec"] = diffSec
+
+		if body.ChangedBy != nil && *body.ChangedBy != "" {
+			lead.FirstContactedBy = *body.ChangedBy
+			updates["first_contacted_by"] = *body.ChangedBy
+			// Auto-assign to the closer taking action if lead was unassigned
+			if lead.AssignedTo == "" {
+				lead.AssignedTo = *body.ChangedBy
+				updates["assigned_to"] = *body.ChangedBy
+			}
+		}
+	}
+
 	// Bi-directional synchronization between CRM Status and Lead Status
 	crmWon := strings.EqualFold(body.CrmStatus, "Won & Paid") ||
 		strings.EqualFold(body.CrmStatus, "won") ||
@@ -325,6 +357,20 @@ func (h *LeadHandler) Update(w http.ResponseWriter, r *http.Request) {
 	statusWon := strings.EqualFold(body.Status, "converted") ||
 		strings.EqualFold(body.Status, "won") ||
 		strings.EqualFold(body.Status, "paid")
+
+	// 2. Close Time: Record when the deal is won / converted
+	if (crmWon || statusWon) && lead.ClosedAt == nil {
+		now := time.Now()
+		lead.ClosedAt = &now
+		updates["closed_at"] = now
+
+		closeSec := int64(now.Sub(lead.CreatedAt).Seconds())
+		if closeSec < 0 {
+			closeSec = 0
+		}
+		lead.CloseTimeSec = &closeSec
+		updates["close_time_sec"] = closeSec
+	}
 
 	if crmWon && body.Status == "" {
 		lead.Status = "converted"

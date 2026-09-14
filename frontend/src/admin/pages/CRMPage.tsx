@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Search, Users, DollarSign, Filter, CheckCircle2, Clock, Phone, Mail, MapPin, Calendar, FileText, ArrowRight, X, RefreshCw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Check, ExternalLink, Truck, CreditCard, ShieldCheck } from 'lucide-react'
-import { adminService, type AdminLead } from '../services/adminService'
+import { Search, Users, DollarSign, Filter, CheckCircle2, Clock, Phone, Mail, MapPin, Calendar, FileText, ArrowRight, X, RefreshCw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Check, ExternalLink, Truck, CreditCard, ShieldCheck, Zap } from 'lucide-react'
+import { adminService, type AdminLead, formatDuration } from '../services/adminService'
 import { useAdminStore } from '../store/useAdminStore'
 
 const fmtCurrency = (n: number) => `₦${Math.round(n).toLocaleString('en-NG')}`
@@ -130,7 +130,7 @@ export function CRMPage() {
   }, [search, statusFilter, pageSize])
 
   const handleUpdateStatus = async (id: number | string, newStatus: string) => {
-    const success = await adminService.updateCrmStatus(id, newStatus)
+    const success = await adminService.updateCrmStatus(id, newStatus, session.user?.id)
     if (success) {
       const isWon = newStatus === 'Won & Paid'
       const updatedStatus = isWon ? 'converted' : undefined
@@ -141,6 +141,16 @@ export function CRMPage() {
       if (selectedLead && selectedLead.id === id) {
         setSelectedLead({ ...selectedLead, crmStatus: newStatus, ...(updatedStatus ? { status: updatedStatus } : {}) })
       }
+      // Re-fetch in background to sync calculated response time & close time
+      adminService.getLeads().then(updatedList => {
+        if (updatedList) {
+          setLeads(updatedList)
+          if (selectedLead) {
+            const reloaded = updatedList.find(l => String(l.id) === String(selectedLead.id))
+            if (reloaded) setSelectedLead(reloaded)
+          }
+        }
+      })
     }
   }
 
@@ -210,6 +220,11 @@ export function CRMPage() {
   const winRate = validLeads.length > 0 ? Math.round((wonCount / validLeads.length) * 100) : 0
   const invalidCount = leads.filter(l => String(l.crmStatus || l.status).toLowerCase() === 'invalid').length
 
+  const contactedLeads = validLeads.filter(l => l.responseTimeSec !== undefined && l.responseTimeSec > 0)
+  const avgResponseTimeSec = contactedLeads.length > 0
+    ? Math.round(contactedLeads.reduce((acc, l) => acc + (l.responseTimeSec || 0), 0) / contactedLeads.length)
+    : 0
+
   // Generate visible page numbers
   const pageNumbers = useMemo(() => {
     const pages: number[] = []
@@ -256,6 +271,16 @@ export function CRMPage() {
           <div className="admin-stat-value">{leads.length}</div>
           <div className="admin-stat-sub">
             {invalidCount > 0 ? `${invalidCount} marked invalid / test` : 'From journey planner & website'}
+          </div>
+        </div>
+
+        <div className="admin-stat-card" style={{ borderTop: '2px solid #0284c7' }}>
+          <div className="admin-stat-label">Avg Response Time</div>
+          <div className="admin-stat-value" style={{ color: avgResponseTimeSec > 0 ? 'var(--adm-success)' : undefined }}>
+            {formatDuration(avgResponseTimeSec)}
+          </div>
+          <div className="admin-stat-sub">
+            {contactedLeads.length > 0 ? `${contactedLeads.length} leads reached by closers` : 'Measured on status change'}
           </div>
         </div>
 
@@ -307,17 +332,18 @@ export function CRMPage() {
                 <th>Value (Est.)</th>
                 <th>Date Received</th>
                 <th>Assigned To</th>
+                <th>Response Time</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="admin-table-empty">Loading CRM leads…</td>
+                  <td colSpan={8} className="admin-table-empty">Loading CRM leads…</td>
                 </tr>
               ) : paginatedLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="admin-table-empty">No leads found matching your search.</td>
+                  <td colSpan={8} className="admin-table-empty">No leads found matching your search.</td>
                 </tr>
               ) : (
                 paginatedLeads.map(l => {
@@ -364,6 +390,27 @@ export function CRMPage() {
                       </td>
                       <td style={{ fontSize: 12 }}>{fmtDate(l.createdAt)}</td>
                       <td style={{ fontSize: 12, color: 'var(--adm-text-2)' }}>{assignedUser ? assignedUser.fullName : (l.assignedTo ? 'Unknown User' : 'Unassigned')}</td>
+                      <td style={{ fontSize: 12 }}>
+                        {l.responseTimeSec !== undefined && l.responseTimeSec > 0 ? (
+                          <span
+                            className="admin-badge admin-badge-green"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontWeight: 600 }}
+                            title={`First contacted in ${formatDuration(l.responseTimeSec)}`}
+                          >
+                            <Zap size={10} /> {formatDuration(l.responseTimeSec)}
+                          </span>
+                        ) : String(l.crmStatus || l.status).toLowerCase() === 'invalid' ? (
+                          <span style={{ color: 'var(--adm-text-3)' }}>—</span>
+                        ) : (
+                          <span
+                            className="admin-badge admin-badge-yellow"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 3, opacity: 0.85 }}
+                            title="Pending outreach from sales closer (will record on status change)"
+                          >
+                            <Clock size={10} /> Awaiting
+                          </span>
+                        )}
+                      </td>
                       <td>
                         <span className={`admin-badge ${badge.class}`}>{badge.label}</span>
                       </td>
@@ -597,9 +644,22 @@ export function CRMPage() {
                   {fmtCurrency(selectedLead.estimatedInvestmentMax || selectedLead.estimatedInvestmentMin || 0)}
                 </div>
               </div>
-              <div style={{ fontSize: 12, color: 'var(--adm-text-2)', textAlign: 'right' }}>
-                <div><strong>Received:</strong></div>
-                <div>{fmtDate(selectedLead.createdAt)}</div>
+              <div style={{ fontSize: 12, color: 'var(--adm-text-2)', textAlign: 'right', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div><strong>Received:</strong> {fmtDate(selectedLead.createdAt)}</div>
+                {selectedLead.responseTimeSec !== undefined && selectedLead.responseTimeSec > 0 ? (
+                  <div style={{ color: 'var(--adm-success)', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
+                    <Zap size={11} /> <strong>First Response:</strong> {formatDuration(selectedLead.responseTimeSec)}
+                  </div>
+                ) : (
+                  <div style={{ color: 'var(--adm-warning)', fontSize: 11 }}>
+                    ⏳ Awaiting initial closer outreach
+                  </div>
+                )}
+                {selectedLead.closeTimeSec !== undefined && selectedLead.closeTimeSec > 0 && (
+                  <div style={{ color: 'var(--adm-accent)', fontWeight: 600 }}>
+                    🏆 <strong>Close Velocity:</strong> {formatDuration(selectedLead.closeTimeSec)}
+                  </div>
+                )}
               </div>
             </div>
 

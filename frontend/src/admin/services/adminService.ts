@@ -1,11 +1,41 @@
 import { API_URL } from '../../config/api'
 
+export interface CloserStat {
+  userId: string
+  fullName: string
+  email: string
+  role: string
+  totalAssigned: number
+  totalWon: number
+  winRate: number
+  avgResponseTimeSec: number
+  avgCloseTimeSec: number
+  totalRevenue: number
+}
+
+export const formatDuration = (seconds?: number | null): string => {
+  if (seconds === undefined || seconds === null || seconds < 0) return '—'
+  if (seconds === 0) return '< 1m'
+  if (seconds < 60) return `${Math.round(seconds)}s`
+  const mins = Math.floor(seconds / 60)
+  if (mins < 60) return `${mins}m`
+  const hrs = Math.floor(mins / 60)
+  const remMins = mins % 60
+  if (hrs < 24) return remMins > 0 ? `${hrs}h ${remMins}m` : `${hrs}h`
+  const days = (seconds / 86400).toFixed(1)
+  return `${days.endsWith('.0') ? days.slice(0, -2) : days}d`
+}
+
+
 export interface AdminStats {
   totalQuotes: number
   pendingLeads: number
   unreadContacts: number
   activeFleet: number
   totalPipelineValue: number
+  avgResponseTimeSec?: number
+  avgCloseTimeSec?: number
+  closerStats?: CloserStat[]
 }
 
 export interface AdminLead {
@@ -24,6 +54,11 @@ export interface AdminLead {
   status: string
   crmStatus: string
   assignedTo?: string
+  firstContactedAt?: string
+  firstContactedBy?: string
+  responseTimeSec?: number
+  closedAt?: string
+  closeTimeSec?: number
   notes?: string
   createdAt: string
   payload?: any
@@ -92,6 +127,7 @@ export class AdminService {
     }
 
     const leads = await this.getLeads()
+    const users = await this.getUsers()
     const validLeads = leads.filter(l => String(l.crmStatus || l.status).toLowerCase() !== 'invalid')
     const pendingLeads = validLeads.filter(l => {
       const isWon =
@@ -103,12 +139,63 @@ export class AdminService {
     }).length
     const totalPipelineValue = validLeads.reduce((acc, l) => acc + (l.estimatedInvestmentMax || l.estimatedInvestmentMin || 0), 0)
 
+    // Calculate team timing
+    const contactedLeads = validLeads.filter(l => l.responseTimeSec !== undefined && l.responseTimeSec > 0)
+    const avgResponseTimeSec = contactedLeads.length > 0
+      ? Math.round(contactedLeads.reduce((acc, l) => acc + (l.responseTimeSec || 0), 0) / contactedLeads.length)
+      : 0
+
+    const wonLeads = validLeads.filter(l => {
+      const crm = String(l.crmStatus || '').toLowerCase()
+      const st = String(l.status || '').toLowerCase()
+      return (crm === 'won & paid' || crm === 'won' || crm === 'converted' || st === 'converted' || st === 'won' || st === 'paid')
+    })
+    const wonTimedLeads = wonLeads.filter(l => l.closeTimeSec !== undefined && l.closeTimeSec > 0)
+    const avgCloseTimeSec = wonTimedLeads.length > 0
+      ? Math.round(wonTimedLeads.reduce((acc, l) => acc + (l.closeTimeSec || 0), 0) / wonTimedLeads.length)
+      : 0
+
+    // Calculate closer stats
+    const closers = users.filter(u => u.role === 'sales_closer' || validLeads.some(l => String(l.assignedTo) === String(u.id)))
+    const closerStats: CloserStat[] = closers.map(c => {
+      const assigned = validLeads.filter(l => String(l.assignedTo) === String(c.id))
+      const won = assigned.filter(l => {
+        const crm = String(l.crmStatus || '').toLowerCase()
+        const st = String(l.status || '').toLowerCase()
+        return (crm === 'won & paid' || crm === 'won' || crm === 'converted' || st === 'converted' || st === 'won' || st === 'paid')
+      })
+      const respTimed = assigned.filter(l => l.responseTimeSec !== undefined && l.responseTimeSec > 0)
+      const cAvgResp = respTimed.length > 0 ? Math.round(respTimed.reduce((a, l) => a + (l.responseTimeSec || 0), 0) / respTimed.length) : 0
+
+      const closeTimed = won.filter(l => l.closeTimeSec !== undefined && l.closeTimeSec > 0)
+      const cAvgClose = closeTimed.length > 0 ? Math.round(closeTimed.reduce((a, l) => a + (l.closeTimeSec || 0), 0) / closeTimed.length) : 0
+
+      const revenue = won.reduce((a, l) => a + (l.estimatedInvestmentMax || l.estimatedInvestmentMin || 0), 0)
+      const winRate = assigned.length > 0 ? Math.round((won.length / assigned.length) * 100) : 0
+
+      return {
+        userId: c.id,
+        fullName: c.fullName,
+        email: c.email,
+        role: c.role,
+        totalAssigned: assigned.length,
+        totalWon: won.length,
+        winRate,
+        avgResponseTimeSec: cAvgResp,
+        avgCloseTimeSec: cAvgClose,
+        totalRevenue: revenue,
+      }
+    })
+
     return {
       totalQuotes: validLeads.length,
       pendingLeads,
       unreadContacts: 0,
       activeFleet: 5,
       totalPipelineValue,
+      avgResponseTimeSec,
+      avgCloseTimeSec,
+      closerStats,
     }
   }
 
@@ -156,6 +243,11 @@ export class AdminService {
       status: l.status || 'pending',
       crmStatus: l.crmStatus || 'New Lead',
       assignedTo: l.assignedTo || '',
+      firstContactedAt: l.firstContactedAt || undefined,
+      firstContactedBy: l.firstContactedBy || undefined,
+      responseTimeSec: l.responseTimeSec !== undefined && l.responseTimeSec !== null ? Number(l.responseTimeSec) : undefined,
+      closedAt: l.closedAt || undefined,
+      closeTimeSec: l.closeTimeSec !== undefined && l.closeTimeSec !== null ? Number(l.closeTimeSec) : undefined,
       notes: l.notes || '',
       createdAt: l.createdAt || new Date().toISOString(),
       payload: parsePayload(l.payload || l.payloadJSON),
@@ -197,6 +289,11 @@ export class AdminService {
             status: l.status || 'pending',
             crmStatus: l.crmStatus || 'New Lead',
             assignedTo: l.assignedTo || '',
+            firstContactedAt: l.firstContactedAt || undefined,
+            firstContactedBy: l.firstContactedBy || undefined,
+            responseTimeSec: l.responseTimeSec !== undefined && l.responseTimeSec !== null ? Number(l.responseTimeSec) : undefined,
+            closedAt: l.closedAt || undefined,
+            closeTimeSec: l.closeTimeSec !== undefined && l.closeTimeSec !== null ? Number(l.closeTimeSec) : undefined,
             notes: l.notes || '',
             createdAt: l.createdAt || new Date().toISOString(),
             payload: parsePayload(l.payload || l.payloadJSON),
@@ -263,12 +360,12 @@ export class AdminService {
   /**
    * Update CRM pipeline status directly in remote backend database.
    */
-  public async updateCrmStatus(id: number | string, crmStatus: string): Promise<boolean> {
+  public async updateCrmStatus(id: number | string, crmStatus: string, changedBy?: string): Promise<boolean> {
     try {
       const res = await fetch(`${API_URL}/leads/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ crmStatus }),
+        body: JSON.stringify({ crmStatus, ...(changedBy ? { changedBy } : {}) }),
       })
       return res.ok
     } catch (err) {

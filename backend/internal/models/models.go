@@ -18,11 +18,16 @@ type Lead struct {
 	Status                 string    `json:"status" gorm:"type:varchar(64);default:'pending'"`
 	CrmStatus              string    `json:"crmStatus" gorm:"type:varchar(64);default:'New Lead'"`
 	AssignedTo             string    `json:"assignedTo" gorm:"type:varchar(64)"`
-	Notes                  string    `json:"notes" gorm:"type:text"`
-	PayloadJSON            string    `json:"-" gorm:"type:longtext"`
-	Payload                any       `json:"payload,omitempty" gorm:"-"`
-	CreatedAt              time.Time `json:"createdAt"`
-	UpdatedAt              time.Time `json:"updatedAt"`
+	Notes                  string     `json:"notes" gorm:"type:text"`
+	PayloadJSON            string     `json:"-" gorm:"type:longtext"`
+	Payload                any        `json:"payload,omitempty" gorm:"-"`
+	FirstContactedAt       *time.Time `json:"firstContactedAt,omitempty" gorm:"index"`
+	FirstContactedBy       string     `json:"firstContactedBy,omitempty" gorm:"type:varchar(64)"`
+	ResponseTimeSec        *int64     `json:"responseTimeSec,omitempty"`
+	ClosedAt               *time.Time `json:"closedAt,omitempty" gorm:"index"`
+	CloseTimeSec           *int64     `json:"closeTimeSec,omitempty"`
+	CreatedAt              time.Time  `json:"createdAt"`
+	UpdatedAt              time.Time  `json:"updatedAt"`
 }
 
 type Contact struct {
@@ -112,4 +117,17 @@ type SystemSetting struct {
 	SettingsJSON string    `json:"settingsJson" gorm:"type:text"`
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
+}
+
+type CloserStat struct {
+	UserID             string  `json:"userId"`
+	FullName           string  `json:"fullName"`
+	Email              string  `json:"email"`
+	Role               string  `json:"role"`
+	TotalAssigned      int64   `json:"totalAssigned"`
+	TotalWon           int64   `json:"totalWon"`
+	WinRate            int     `json:"winRate"`
+	AvgResponseTimeSec int64   `json:"avgResponseTimeSec"`
+	AvgCloseTimeSec    int64   `json:"avgCloseTimeSec"`
+	TotalRevenue       float64 `json:"totalRevenue"`
 }

@@ -65,6 +65,14 @@ func AutoMigrate(db *gorm.DB) error {
 		Where("LOWER(status) IN ('converted', 'paid') AND crm_status != 'Won & Paid'").
 		Update("crm_status", "Won & Paid")
 
+	// Backfill timing for existing won leads without closed_at
+	db.Exec("UPDATE leads SET closed_at = updated_at WHERE (LOWER(crm_status) IN ('won & paid', 'won', 'converted') OR LOWER(status) IN ('converted', 'paid')) AND closed_at IS NULL")
+	db.Exec("UPDATE leads SET close_time_sec = GREATEST(0, TIMESTAMPDIFF(SECOND, created_at, closed_at)) WHERE closed_at IS NOT NULL AND (close_time_sec IS NULL OR close_time_sec = 0)")
+
+	// Backfill response time for existing contacted leads without first_contacted_at
+	db.Exec("UPDATE leads SET first_contacted_at = updated_at WHERE LOWER(crm_status) NOT IN ('new lead', 'invalid') AND first_contacted_at IS NULL")
+	db.Exec("UPDATE leads SET response_time_sec = GREATEST(0, TIMESTAMPDIFF(SECOND, created_at, first_contacted_at)) WHERE first_contacted_at IS NOT NULL AND (response_time_sec IS NULL OR response_time_sec = 0)")
+
 	log.Println("✅ GORM AutoMigrate completed successfully (Leads, Contacts, Vehicles, Bookings, Customers, Users tables verified).")
 	return nil
 }

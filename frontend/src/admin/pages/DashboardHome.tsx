@@ -1,11 +1,11 @@
 // ============================================================================
 // NETS Admin — Dashboard Home
 // ============================================================================
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, CalendarCheck, Truck, AlertTriangle, Plus, DollarSign, Clock, TrendingUp } from 'lucide-react'
+import { FileText, CalendarCheck, Truck, AlertTriangle, Plus, DollarSign, Clock, TrendingUp, Zap, Award } from 'lucide-react'
 import { useAdminStore } from '../store/useAdminStore'
-import { adminService, AdminStats, AdminLead, AdminBookingDB } from '../services/adminService'
+import { adminService, AdminStats, AdminLead, AdminBookingDB, CloserStat, formatDuration } from '../services/adminService'
 
 const fmt = (n: number) => `₦${Math.round(n).toLocaleString('en-NG')}`
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -37,11 +37,13 @@ export function DashboardHome() {
   const [liveStats, setLiveStats] = useState<AdminStats | null>(null)
   const [liveLeads, setLiveLeads] = useState<AdminLead[]>([])
   const [liveBookings, setLiveBookings] = useState<AdminBookingDB[]>([])
+  const [users, setUsers] = useState<any[]>([])
 
   useEffect(() => {
     adminService.getStats().then(setLiveStats)
     adminService.getLeads().then(setLiveLeads)
     adminService.getBookings().then(setLiveBookings)
+    adminService.getUsers().then(setUsers)
   }, [])
 
   // KPIs derived directly from live database leads & bookings
@@ -89,6 +91,42 @@ export function DashboardHome() {
 
   const displayActivities = combinedActivities.length > 0 ? combinedActivities : activityLog
 
+  const closerList: CloserStat[] = useMemo(() => {
+    if (liveStats?.closerStats && liveStats.closerStats.length > 0) {
+      return liveStats.closerStats
+    }
+    const closers = users.filter(u => u.role === 'sales_closer' || validLeads.some(l => String(l.assignedTo) === String(u.id)))
+    return closers.map(c => {
+      const assigned = validLeads.filter(l => String(l.assignedTo) === String(c.id))
+      const won = assigned.filter(l => {
+        const crm = String(l.crmStatus || '').toLowerCase()
+        const st = String(l.status || '').toLowerCase()
+        return (crm === 'won & paid' || crm === 'won' || crm === 'converted' || st === 'converted' || st === 'won' || st === 'paid')
+      })
+      const respTimed = assigned.filter(l => l.responseTimeSec !== undefined && l.responseTimeSec > 0)
+      const cAvgResp = respTimed.length > 0 ? Math.round(respTimed.reduce((a, l) => a + (l.responseTimeSec || 0), 0) / respTimed.length) : 0
+
+      const closeTimed = won.filter(l => l.closeTimeSec !== undefined && l.closeTimeSec > 0)
+      const cAvgClose = closeTimed.length > 0 ? Math.round(closeTimed.reduce((a, l) => a + (l.closeTimeSec || 0), 0) / closeTimed.length) : 0
+
+      const revenue = won.reduce((a, l) => a + (l.estimatedInvestmentMax || l.estimatedInvestmentMin || 0), 0)
+      const winRate = assigned.length > 0 ? Math.round((won.length / assigned.length) * 100) : 0
+
+      return {
+        userId: c.id,
+        fullName: c.fullName,
+        email: c.email,
+        role: c.role,
+        totalAssigned: assigned.length,
+        totalWon: won.length,
+        winRate,
+        avgResponseTimeSec: cAvgResp,
+        avgCloseTimeSec: cAvgClose,
+        totalRevenue: revenue,
+      }
+    })
+  }, [liveStats, users, validLeads])
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Page Header */}
@@ -129,6 +167,130 @@ export function DashboardHome() {
           <div className="admin-stat-value" style={{ fontSize: '1.25rem' }}>{fmt(revenueTotal)}</div>
           <div className="admin-stat-sub admin-stat-trend-up">Estimated quote value</div>
         </div>
+      </div>
+
+      {/* Sales Closer Performance & Average Close Times Section */}
+      <div className="admin-card" style={{ padding: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--adm-text-1)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Clock size={16} color="var(--adm-accent)" /> Sales Closer Performance & Average Close Times
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--adm-text-3)', marginTop: 2 }}>
+              Speed-to-lead response times, deal close velocity, and conversion performance per closer
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            {liveStats?.avgResponseTimeSec && liveStats.avgResponseTimeSec > 0 ? (
+              <span className="admin-badge admin-badge-green" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <Zap size={11} /> Team Avg Response: {formatDuration(liveStats.avgResponseTimeSec)}
+              </span>
+            ) : null}
+            <button className="admin-btn admin-btn-ghost admin-btn-sm" onClick={() => navigate('/admin/crm')}>
+              Manage CRM Pipeline
+            </button>
+          </div>
+        </div>
+
+        {closerList.length === 0 ? (
+          <div className="admin-table-empty" style={{ padding: '2rem 1rem' }}>
+            No sales closers active or assigned to leads yet. As leads are assigned and updated in the CRM tab, closer response times and average close metrics will appear here.
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+            {closerList.map(c => (
+              <div
+                key={c.userId}
+                style={{
+                  background: 'var(--adm-surface-2)',
+                  border: '1px solid var(--adm-border)',
+                  borderRadius: 'var(--adm-radius-sm)',
+                  padding: '1.125rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.875rem',
+                  position: 'relative',
+                }}
+              >
+                {/* Closer Header */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                    <div
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: '50%',
+                        background: 'rgba(26, 31, 168, 0.1)',
+                        color: 'var(--adm-accent)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 700,
+                        fontSize: 13,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {c.fullName ? c.fullName.charAt(0).toUpperCase() : 'C'}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--adm-text-1)' }}>{c.fullName}</div>
+                      <div style={{ fontSize: 11, color: 'var(--adm-text-3)' }}>{c.email}</div>
+                    </div>
+                  </div>
+                  <span className="admin-badge admin-badge-accent" style={{ fontSize: 10 }}>
+                    {c.role === 'sales_closer' ? 'Sales Closer' : c.role}
+                  </span>
+                </div>
+
+                {/* Primary Metric: Average Close Time Card */}
+                <div style={{ background: '#ffffff', padding: '0.875rem', borderRadius: 4, border: '1px solid var(--adm-border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ fontSize: 10.5, textTransform: 'uppercase', fontWeight: 700, color: 'var(--adm-text-3)', letterSpacing: '0.04em' }}>
+                      Average Time to Close
+                    </div>
+                    {c.totalWon > 0 && <Award size={13} color="var(--adm-accent)" />}
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: c.avgCloseTimeSec > 0 ? 'var(--adm-accent)' : 'var(--adm-text-3)', marginTop: 2 }}>
+                    {c.avgCloseTimeSec > 0 ? formatDuration(c.avgCloseTimeSec) : '—'}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--adm-text-2)', marginTop: 2 }}>
+                    {c.totalWon > 0 ? `${c.totalWon} won deal(s) converted` : 'Awaiting first closed deal'}
+                  </div>
+                </div>
+
+                {/* Secondary Metrics: Avg Response + Win Rate */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: 11.5 }}>
+                  <div style={{ background: '#ffffff', padding: '0.625rem', borderRadius: 4, border: '1px solid var(--adm-border)' }}>
+                    <div style={{ color: 'var(--adm-text-3)', fontSize: 10, textTransform: 'uppercase', fontWeight: 700 }}>
+                      Avg Response
+                    </div>
+                    <div style={{ fontWeight: 700, color: c.avgResponseTimeSec > 0 ? 'var(--adm-success)' : 'var(--adm-text-3)', fontSize: 14, marginTop: 2, display: 'flex', alignItems: 'center', gap: 3 }}>
+                      {c.avgResponseTimeSec > 0 && <Zap size={11} />}
+                      {c.avgResponseTimeSec > 0 ? formatDuration(c.avgResponseTimeSec) : '—'}
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#ffffff', padding: '0.625rem', borderRadius: 4, border: '1px solid var(--adm-border)' }}>
+                    <div style={{ color: 'var(--adm-text-3)', fontSize: 10, textTransform: 'uppercase', fontWeight: 700 }}>
+                      Win Rate
+                    </div>
+                    <div style={{ fontWeight: 700, color: 'var(--adm-text-1)', fontSize: 14, marginTop: 2 }}>
+                      {c.winRate}% <span style={{ fontSize: 10, color: 'var(--adm-text-3)', fontWeight: 400 }}>({c.totalWon}/{c.totalAssigned})</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Closed Value Footer */}
+                {c.totalRevenue > 0 && (
+                  <div style={{ fontSize: 11.5, color: 'var(--adm-text-2)', borderTop: '1px solid var(--adm-border)', paddingTop: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Won Pipeline Revenue:</span>
+                    <strong style={{ color: 'var(--adm-text-1)', fontSize: 12.5 }}>{fmt(c.totalRevenue)}</strong>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="admin-grid-2" style={{ gap: '1.5rem' }}>
