@@ -178,6 +178,7 @@ export function QuotePaymentPage() {
       return
     }
 
+    setShowPaymentNotice(false)
     setIsProcessing(true)
 
     const isLoaded = await ensurePaystackLoaded()
@@ -187,16 +188,20 @@ export function QuotePaymentPage() {
       return
     }
 
-    const customerEmail = lead.customerEmail && lead.customerEmail !== 'N/A' && lead.customerEmail.includes('@')
-      ? lead.customerEmail
-      : 'customer@neweratransports.com'
+    const rawEmail = (lead.customerEmail || '').trim()
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    const customerEmail = emailRegex.test(rawEmail) ? rawEmail : 'customer@neweratransports.com'
     const generatedRef = `NETS-PAY-${lead.leadReference || 'QUOTE'}-${Date.now()}`
+    const koboAmount = Math.round(Number(amount) * 100)
 
     try {
+      // NOTE: Paystack's inline validator uses {}.toString.call(fn) === '[object Function]'.
+      // Async functions return '[object AsyncFunction]' which fails validation!
+      // Therefore, callback and onClose MUST be regular (non-async) functions.
       const handler = (window as any).PaystackPop.setup({
         key: PAYSTACK_PUBLIC_KEY,
         email: customerEmail,
-        amount: Math.round(amount * 100), // In kobo
+        amount: koboAmount,
         currency: 'NGN',
         ref: generatedRef,
         metadata: {
@@ -206,38 +211,42 @@ export function QuotePaymentPage() {
             { display_name: 'Route', variable_name: 'route', value: `${lead.origin} to ${lead.destination}` },
           ],
         },
-        callback: async (response: any) => {
-          console.log('Paystack Payment Successful:', response)
-          setPaymentRef(response.reference || generatedRef)
-          
-          // Mark lead as Won & Paid in database
-          await adminService.updateLeadStatus(lead.id, 'converted')
-          await adminService.updateCrmStatus(lead.id, 'Won & Paid')
+        callback: (response: any) => {
+          (async () => {
+            console.log('Paystack Payment Successful:', response)
+            setPaymentRef(response.reference || generatedRef)
+            
+            // Mark lead as Won & Paid in database
+            await adminService.updateLeadStatus(lead.id, 'converted')
+            await adminService.updateCrmStatus(lead.id, 'Won & Paid')
 
-          // Send confirmation notifications
-          emailService.sendNewBookingNotification({
-            reference: generatedRef,
-            customerName: lead.customerName,
-            customerEmail: lead.customerEmail,
-            customerPhone: lead.customerPhone,
-            vehicleName: lead.payload?.estimatedInvestment?.vehicleName || lead.journeyType || 'Charter Fleet',
-            pickup: lead.origin,
-            destination: lead.destination,
-            travelDate: lead.payload?.journeyInformation?.travelDate || lead.createdAt,
-            totalAmount: amount,
-            paymentStatus: 'paid',
+            // Send confirmation notifications
+            emailService.sendNewBookingNotification({
+              reference: generatedRef,
+              customerName: lead.customerName,
+              customerEmail: lead.customerEmail,
+              customerPhone: lead.customerPhone,
+              vehicleName: lead.payload?.estimatedInvestment?.vehicleName || lead.journeyType || 'Charter Fleet',
+              pickup: lead.origin,
+              destination: lead.destination,
+              travelDate: lead.payload?.journeyInformation?.travelDate || lead.createdAt,
+              totalAmount: amount,
+              paymentStatus: 'paid',
+            })
+
+            setIsProcessing(false)
+            setPaidSuccess(true)
+          })().catch((err) => {
+            console.error('Error handling payment success:', err)
+            setIsProcessing(false)
+            setPaidSuccess(true)
           })
-
-          setShowPaymentNotice(false)
-          setIsProcessing(false)
-          setPaidSuccess(true)
         },
         onClose: () => {
           setIsProcessing(false)
         },
       })
       handler.openIframe()
-      setShowPaymentNotice(false)
     } catch (err) {
       console.error('Paystack popup initialization error:', err)
       alert('Failed to initialize Paystack payment modal. Please try again.')
