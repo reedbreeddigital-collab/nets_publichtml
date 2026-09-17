@@ -7,7 +7,6 @@ import { GooglePlacesAutocomplete } from '../GooglePlacesAutocomplete'
 const vehicleOptions = [
   { id: 'hiace', name: 'Toyota HiAce (14 Seats)', capacity: 14 },
   { id: 'coaster', name: 'Toyota Coaster (30 Seats)', capacity: 30 },
-  { id: 'sienna', name: 'Toyota Sienna (7 Seats)', capacity: 7 },
   { id: 'suv', name: 'Executive SUV (4 Seats)', capacity: 4 },
   { id: 'sedan', name: 'Executive Sedan (3 Seats)', capacity: 3 }
 ]
@@ -185,7 +184,7 @@ export function Step2Details() {
               onChange={(e) => setPassengers(e.target.value)}
             >
               <option value="" disabled>Select Passengers</option>
-              {['1–3','4–7','8–14','15–18','19–30','31–50','50+'].map(o => <option key={o} value={o}>{o}</option>)}
+              {['1–3','4–7','8–14','19–30'].map(o => <option key={o} value={o}>{o}</option>)}
             </select>
           </div>
         </div>

@@ -93,7 +93,6 @@ export const FLEET_OPTIONS = [
   { value: 'Toyota Coaster', label: 'Toyota Coaster (30 Seater)' },
   { value: 'Executive SUV', label: 'Executive SUV (7 Seater)' },
   { value: 'Executive Sedan', label: 'Executive Sedan (3 Seater)' },
-  { value: 'Toyota Sienna', label: 'Toyota Sienna (7 Seater)' },
 ]
 
 const statusBadges: Record<string, { label: string; class: string }> = {
@@ -226,7 +225,13 @@ export function QuotesPage() {
         durationMins: Number(journey.durationMins || 0),
         travelDate: journey.travelDate || l.createdAt,
         passengerCount,
-        estimatedInvestment: l.estimatedInvestmentMax || l.estimatedInvestmentMin || 0,
+        estimatedInvestment:
+          Number(l.estimatedInvestmentMax) ||
+          Number(l.estimatedInvestmentMin) ||
+          Number(invest.total) ||
+          Number(invest.estimatedInvestment) ||
+          Number(invest.minimumEstimate) ||
+          0,
         status: (() => {
           const isWon =
             String(l.crmStatus).toLowerCase() === 'won & paid' ||

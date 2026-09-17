@@ -7,6 +7,7 @@ import './admin.css'
 import { AdminSidebar } from './components/layout/AdminSidebar'
 import { AdminTopbar } from './components/layout/AdminTopbar'
 import { GlobalSearch } from './components/layout/GlobalSearch'
+import { LeadAssignmentNotifier } from './components/notifications/LeadAssignmentNotifier'
 import { useAdminStore } from './store/useAdminStore'
 
 export function AdminShell() {
@@ -31,6 +32,7 @@ export function AdminShell() {
         <AdminSidebar />
         <AdminTopbar />
         <GlobalSearch />
+        <LeadAssignmentNotifier />
         <main className="admin-main">
           <div className="admin-page">
             <Outlet />

@@ -4,6 +4,7 @@ import { CreditCard, Wallet, ShieldCheck, ArrowLeft, CheckCircle2 } from 'lucide
 import { useShuttleStore } from '../../store/useShuttleStore'
 import { PAYSTACK_PUBLIC_KEY } from '../../config/api'
 import { emailService } from '../../services/emailService'
+import { PaymentNoticeModal } from '../../components/payment/PaymentNoticeModal'
 
 export function PaymentPage() {
   const navigate = useNavigate()
@@ -16,6 +17,7 @@ export function PaymentPage() {
 
   const [isProcessing, setIsProcessing] = useState(false)
   const [paystackLoaded, setPaystackLoaded] = useState(false)
+  const [showPaymentNotice, setShowPaymentNotice] = useState(false)
 
   // Dynamically load Paystack Inline JS script
   useEffect(() => {
@@ -49,58 +51,68 @@ export function PaymentPage() {
     return pax?.email || 'passenger@nets.ng'
   }
 
+  const executePaystack = () => {
+    setShowPaymentNotice(false)
+    setIsProcessing(true)
+    const email = getPassengerEmail()
+
+    if ((window as any).PaystackPop) {
+      try {
+        const handler = (window as any).PaystackPop.setup({
+          key: PAYSTACK_PUBLIC_KEY,
+          email,
+          amount: finalTotal * 100, // Amount in kobo
+          currency: 'NGN',
+          ref: `NETS-SHUTTLE-${Date.now()}`,
+          metadata: {
+            custom_fields: [
+              { display_name: 'Route', variable_name: 'route', value: selectedRoute.name },
+              { display_name: 'Seats', variable_name: 'seats', value: seatCount }
+            ]
+          },
+          callback: (response: any) => {
+            console.log('Paystack Payment Success:', response)
+            const newBooking = confirmBooking()
+            emailService.sendNewBookingNotification(newBooking)
+            setIsProcessing(false)
+            navigate(`/shuttles/confirmation/${newBooking.id}`)
+          },
+          onClose: () => {
+            setIsProcessing(false)
+          }
+        })
+        handler.openIframe()
+        return
+      } catch (err) {
+        console.warn('Paystack popup error:', err)
+        alert('Could not initialize Paystack payment modal. Please try again.')
+        setIsProcessing(false)
+        return
+      }
+    } else {
+      alert('Paystack is still loading. Please wait a moment and try again.')
+      setIsProcessing(false)
+    }
+  }
+
   const handleConfirmPay = () => {
-    if (paymentMethod === 'wallet' && walletBalance < finalTotal) {
-      alert('Insufficient wallet balance. Please top-up or select Paystack card payment.')
+    if (paymentMethod === 'wallet') {
+      if (walletBalance < finalTotal) {
+        alert('Insufficient wallet balance. Please top-up or select Paystack card payment.')
+        return
+      }
+      setIsProcessing(true)
+      setTimeout(() => {
+        const newBooking = confirmBooking()
+        emailService.sendNewBookingNotification(newBooking)
+        setIsProcessing(false)
+        navigate(`/shuttles/confirmation/${newBooking.id}`)
+      }, 800)
       return
     }
 
-    setIsProcessing(true)
-
     // Paystack Payment Option
-    if (paymentMethod === 'paystack' || paymentMethod === 'card') {
-      const email = getPassengerEmail()
-      
-      if (paystackLoaded && (window as any).PaystackPop) {
-        try {
-          const handler = (window as any).PaystackPop.setup({
-            key: PAYSTACK_PUBLIC_KEY,
-            email,
-            amount: finalTotal * 100, // Amount in kobo
-            currency: 'NGN',
-            ref: `NETS-SHUTTLE-${Date.now()}`,
-            metadata: {
-              custom_fields: [
-                { display_name: 'Route', variable_name: 'route', value: selectedRoute.name },
-                { display_name: 'Seats', variable_name: 'seats', value: seatCount }
-              ]
-            },
-            callback: (response: any) => {
-              console.log('Paystack Payment Success:', response)
-              const newBooking = confirmBooking()
-              emailService.sendNewBookingNotification(newBooking)
-              setIsProcessing(false)
-              navigate(`/shuttles/confirmation/${newBooking.id}`)
-            },
-            onClose: () => {
-              setIsProcessing(false)
-            }
-          })
-          handler.openIframe()
-          return
-        } catch (err) {
-          console.warn('Paystack popup error, falling back to simulated checkout:', err)
-        }
-      }
-    }
-
-    // Default simulation fallback for Wallet or offline mode
-    setTimeout(() => {
-      const newBooking = confirmBooking()
-      emailService.sendNewBookingNotification(newBooking)
-      setIsProcessing(false)
-      navigate(`/shuttles/confirmation/${newBooking.id}`)
-    }, 1200)
+    setShowPaymentNotice(true)
   }
 
   return (
@@ -325,6 +337,13 @@ export function PaymentPage() {
         </div>
       </main>
 
+      <PaymentNoticeModal
+        isOpen={showPaymentNotice}
+        onClose={() => setShowPaymentNotice(false)}
+        onConfirm={executePaystack}
+        amount={finalTotal}
+        isProcessing={isProcessing}
+      />
     </div>
   )
 }

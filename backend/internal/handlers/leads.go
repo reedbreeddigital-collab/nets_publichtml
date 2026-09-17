@@ -107,7 +107,15 @@ func (h *LeadHandler) Store(w http.ResponseWriter, r *http.Request) {
 	if origin == "" {
 		if pickupMap, ok := journey["pickup"].(map[string]interface{}); ok {
 			origin, _ = pickupMap["address"].(string)
+			if origin == "" {
+				origin, _ = pickupMap["displayName"].(string)
+			}
+		} else if pStr, ok := journey["pickup"].(string); ok {
+			origin = pStr
 		}
+	}
+	if origin == "" {
+		origin, _ = payload["origin"].(string)
 	}
 
 	destination, _ := journey["destinationLocation"].(string)
@@ -117,7 +125,15 @@ func (h *LeadHandler) Store(w http.ResponseWriter, r *http.Request) {
 	if destination == "" {
 		if destMap, ok := journey["destination"].(map[string]interface{}); ok {
 			destination, _ = destMap["address"].(string)
+			if destination == "" {
+				destination, _ = destMap["displayName"].(string)
+			}
+		} else if dStr, ok := journey["destination"].(string); ok {
+			destination = dStr
 		}
+	}
+	if destination == "" {
+		destination, _ = payload["destination"].(string)
 	}
 
 	var minEst, maxEst float64
@@ -133,6 +149,28 @@ func (h *LeadHandler) Store(w http.ResponseWriter, r *http.Request) {
 		}
 		if maxEst == 0 {
 			maxEst = v
+		}
+	}
+	if v, ok := invest["estimatedInvestment"].(float64); ok {
+		if minEst == 0 {
+			minEst = v
+		}
+		if maxEst == 0 {
+			maxEst = v
+		}
+	}
+	if minEst == 0 && maxEst == 0 {
+		if v, ok := payload["estimatedInvestment"].(float64); ok {
+			minEst = v
+			maxEst = v
+		}
+	}
+	if minEst == 0 && maxEst == 0 {
+		if payInfo, ok := payload["paymentInformation"].(map[string]interface{}); ok {
+			if v, ok := payInfo["amountPaid"].(float64); ok && v > 0 {
+				minEst = v
+				maxEst = v
+			}
 		}
 	}
 
@@ -200,9 +238,59 @@ func (h *LeadHandler) Store(w http.ResponseWriter, r *http.Request) {
 			lead.CloseTimeSec = &zeroSec
 		}
 		
-		if err := db.Create(&lead).Error; err != nil {
-			response.Error(w, http.StatusInternalServerError, fmt.Sprintf("Failed to store lead in DB: %v", err))
-			return
+		var existingRef models.Lead
+		if err := db.Where("lead_reference = ?", ref).First(&existingRef).Error; err == nil {
+			// Update existing lead record rather than failing on duplicate key
+			existingRef.CustomerName = customerName
+			existingRef.CustomerEmail = customerEmail
+			existingRef.CustomerPhone = customerPhone
+			if company != "" {
+				existingRef.Company = company
+			}
+			if heardAboutUs != "" {
+				existingRef.HeardAboutUs = heardAboutUs
+			}
+			if origin != "" {
+				existingRef.Origin = origin
+			}
+			if destination != "" {
+				existingRef.Destination = destination
+			}
+			if journeyType != "" {
+				existingRef.JourneyType = journeyType
+			}
+			if minEst > 0 || maxEst > 0 {
+				existingRef.EstimatedInvestmentMin = minEst
+				existingRef.EstimatedInvestmentMax = maxEst
+			}
+			if status != "" && status != "pending" {
+				existingRef.Status = status
+			}
+			if crmStatus != "" && crmStatus != "New Lead" {
+				existingRef.CrmStatus = crmStatus
+			}
+			if notes != "" {
+				existingRef.Notes = notes
+			}
+			existingRef.PayloadJSON = string(payloadBytes)
+
+			if existingRef.Status == "paid" || existingRef.Status == "converted" || existingRef.CrmStatus == "Won & Paid" {
+				now := time.Now()
+				existingRef.ClosedAt = &now
+				zeroSec := int64(0)
+				existingRef.CloseTimeSec = &zeroSec
+			}
+
+			if err := db.Save(&existingRef).Error; err != nil {
+				response.Error(w, http.StatusInternalServerError, fmt.Sprintf("Failed to update lead in DB: %v", err))
+				return
+			}
+			lead = existingRef
+		} else {
+			if err := db.Create(&lead).Error; err != nil {
+				response.Error(w, http.StatusInternalServerError, fmt.Sprintf("Failed to store lead in DB: %v", err))
+				return
+			}
 		}
 
 		// Auto-create booking if lead was created in won / paid / converted state

@@ -168,21 +168,10 @@ func SeedVehicles(db *gorm.DB) {
 			LuggageSpace:    "Generous (Rear compartment + overhead parcel racks)",
 			AirConditioning: "High-Capacity Climate Control",
 		},
-		{
-			ID:              "sienna",
-			Name:            "Toyota Sienna",
-			Slug:            "toyota-sienna",
-			Category:        "Standard",
-			Capacity:        7,
-			BestFor:         "Family Travel · Airport Transfers · Executive Teams",
-			ImageURL:        "/vehicles/suv.png",
-			FeaturesJSON:    mustJSON([]string{"Air Conditioning", "Comfortable Seats", "Professional Driver", "Privacy Glass"}),
-			Available:       true,
-			ComfortRating:   "Executive",
-			LuggageSpace:    "Standard (Good for medium suitcases)",
-			AirConditioning: "Multi-Zone Automatic Climate Control",
-		},
 	}
+
+	// Remove Sienna if present in database
+	db.Where("id = ? OR slug = ?", "sienna", "toyota-sienna").Delete(&models.Vehicle{})
 
 	for _, v := range defaultVehicles {
 		var existing models.Vehicle

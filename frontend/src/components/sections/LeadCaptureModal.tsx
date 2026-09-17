@@ -72,14 +72,35 @@ export function LeadCaptureModal() {
       let totalDurationSeconds = 0
       let routePolyline: any = null
 
+      // Geocode any intermediate stops missing coordinates and update store
+      const resolvedWaypoints: { lat: number; lng: number }[] = []
+      const updatedStops = [...stops]
+      for (let i = 0; i < updatedStops.length; i++) {
+        const s = updatedStops[i]
+        if (!s || !s.address?.trim()) continue
+        let sLat = s.lat
+        let sLng = s.lng
+        if (!sLat || !sLng) {
+          const coords = await geocodeAddress(s.address)
+          if (coords) {
+            sLat = coords.lat
+            sLng = coords.lng
+            updatedStops[i] = { ...s, lat: sLat, lng: sLng }
+          }
+        }
+        if (sLat && sLng) {
+          resolvedWaypoints.push({ lat: sLat, lng: sLng })
+        }
+      }
+      useJourneyStore.setState({ stops: updatedStops })
+
       if (routesLibrary) {
         const directionsService = new routesLibrary.DirectionsService()
-        const waypoints = stops.filter((s: LocationData) => s.lat && s.lng)
         
         const request: google.maps.DirectionsRequest = {
           origin: { lat: pLat, lng: pLng },
           destination: { lat: dLat, lng: dLng },
-          waypoints: waypoints.map((s: LocationData) => ({ location: { lat: s.lat!, lng: s.lng! }, stopover: true })),
+          waypoints: resolvedWaypoints.map((pt) => ({ location: pt, stopover: true })),
           travelMode: google.maps.TravelMode.DRIVING,
         }
 
@@ -113,7 +134,23 @@ export function LeadCaptureModal() {
       })
     } catch (err) {
       console.warn('Google Maps fallback', err)
-      const dist = getFallbackDistanceKm(pickup.lat, pickup.lng, destination.lat, destination.lng)
+      let dist = 0
+      let curLat = pickup?.lat || 0
+      let curLng = pickup?.lng || 0
+      const validStops = stops.filter((s: LocationData) => s && s.lat && s.lng)
+      for (const s of validStops) {
+        if (curLat && curLng && s.lat && s.lng) {
+          dist += getFallbackDistanceKm(curLat, curLng, s.lat, s.lng)
+        }
+        curLat = s.lat || 0
+        curLng = s.lng || 0
+      }
+      if (curLat && curLng && destination?.lat && destination?.lng) {
+        dist += getFallbackDistanceKm(curLat, curLng, destination.lat, destination.lng)
+      } else if (pickup?.lat && pickup?.lng && destination?.lat && destination?.lng) {
+        dist = getFallbackDistanceKm(pickup.lat, pickup.lng, destination.lat, destination.lng)
+      }
+
       const totalKm = Math.max(1.5, Math.round(dist * 10) / 10)
       const totalMins = Math.round(totalKm * 2.5)
 
@@ -129,8 +166,8 @@ export function LeadCaptureModal() {
       })
     }
     
-    // Now trigger calculate pricing
-    calculatePricing()
+    // Now trigger calculate pricing and wait for completion
+    await calculatePricing()
     setIsLoading(false)
     return true
   }
@@ -163,12 +200,14 @@ export function LeadCaptureModal() {
 
     if (leadModalNextAction === 'quote') {
       // Calculate and show quote FIRST so it gets included in the CRM lead
-      await calculateRouteAndPrice()
+      const routeSuccess = await calculateRouteAndPrice()
       setShowQuote(true)
       
-      const payload = getCRMLeadPayload()
-      crmService.submitLead(payload).catch(err => console.warn('CRM lead submission error:', err))
-      emailService.sendInternalNotification(payload).catch(err => console.warn('Email alert error:', err))
+      if (routeSuccess) {
+        const payload = getCRMLeadPayload()
+        crmService.submitLead(payload).catch(err => console.warn('CRM lead submission error:', err))
+        emailService.sendInternalNotification(payload).catch(err => console.warn('Email alert error:', err))
+      }
     } else {
       // Just submit what we have and go to planner
       const payload = getCRMLeadPayload()
@@ -360,6 +399,28 @@ export function LeadCaptureModal() {
                 <div style={{ fontSize: '0.875rem', color: 'var(--color-nets-text-2)' }}>
                   Vehicle: {estimatedInvestment?.vehicleName || 'Standard Vehicle'}
                 </div>
+                {stops && stops.filter((s: LocationData) => s?.address?.trim()).length > 0 && (
+                  <div style={{ 
+                    fontSize: '0.8125rem', 
+                    color: 'var(--color-nets-navy-dark)', 
+                    marginTop: '0.875rem', 
+                    paddingTop: '0.75rem', 
+                    borderTop: '1px dashed rgba(0,0,0,0.12)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.25rem',
+                    textAlign: 'left'
+                  }}>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-nets-text-2)', letterSpacing: '0.05em' }}>Route Itinerary</span>
+                    <div style={{ wordBreak: 'break-word', lineHeight: 1.4 }}>
+                      <span style={{ fontWeight: 600 }}>{pickup?.address?.split(',')[0]}</span>
+                      {stops.filter((s: LocationData) => s?.address?.trim()).map((s: LocationData, idx: number) => (
+                        <span key={idx}> &rarr; <span style={{ color: 'var(--color-nets-red)', fontWeight: 600 }}>[Stop {idx + 1}]</span> {s.address?.split(',')[0]}</span>
+                      ))}
+                      <span> &rarr; <span style={{ fontWeight: 600 }}>{destination?.address?.split(',')[0]}</span></span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <button 

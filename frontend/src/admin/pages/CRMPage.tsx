@@ -124,6 +124,12 @@ export function CRMPage() {
 
   useEffect(() => {
     loadLeads()
+    const interval = setInterval(() => {
+      adminService.getLeads().then((list) => {
+        if (list) setLeads(list)
+      }).catch(() => {})
+    }, 15000)
+    return () => clearInterval(interval)
   }, [])
 
   // Reset to page 1 whenever filters change

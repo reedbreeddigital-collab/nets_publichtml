@@ -1,7 +1,7 @@
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import { Check } from 'lucide-react'
+import { Check, Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
 import { staggerContainer, staggerItem, slideInRight } from '@/lib/motion'
 import { useJourneyStore, type LocationData } from '@/store/useJourneyStore'
 import { GooglePlacesAutocomplete } from '@/components/planner/GooglePlacesAutocomplete'
@@ -11,7 +11,6 @@ const vehicleOptions = [
   { id: '', name: 'Any Vehicle' },
   { id: 'hiace', name: 'Toyota HiAce (14 Seats)' },
   { id: 'coaster', name: 'Toyota Coaster (30 Seats)' },
-  { id: 'sienna', name: 'Toyota Sienna (7 Seats)' },
   { id: 'suv', name: 'Executive SUV (4 Seats)' },
   { id: 'sedan', name: 'Executive Sedan (3 Seats)' }
 ]
@@ -24,7 +23,8 @@ export function HeroSection() {
     passengers, setPassengers, setRecommendedVehicleId, 
     recommendedVehicleId, generateReference, setStep,
     setLeadModalOpen, setLeadModalNextAction,
-    returnDate, setReturnDate
+    returnDate, setReturnDate,
+    stops, addStop, updateStop, removeStop, reorderStops
   } = useJourneyStore()
 
   const [errors, setErrors] = useState<string[]>([])
@@ -54,6 +54,12 @@ export function HeroSection() {
     if (newErrors.length > 0) {
       setErrors(newErrors)
       return
+    }
+
+    // Filter out completely empty stops before submitting
+    const validStops = stops.filter(s => s && s.address && s.address.trim())
+    if (validStops.length !== stops.length) {
+      useJourneyStore.setState({ stops: validStops })
     }
 
     // Generate CRM Reference
@@ -225,9 +231,10 @@ export function HeroSection() {
             <form aria-label="Instant quote request" onSubmit={handleSubmit}
               style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
 
-              <div>
+              <div style={{ position: 'relative', zIndex: 50 }}>
                 <label htmlFor="hero-pickup" className="field-label-dark">Pickup Location</label>
                 <GooglePlacesAutocomplete 
+                  id="hero-pickup"
                   value={pickup?.address || null} 
                   onChange={() => {}} 
                   onLocationSelect={setPickup} 
@@ -238,9 +245,100 @@ export function HeroSection() {
                 {errors.includes('pickup') && <span style={{ color: 'var(--color-nets-red)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>Please enter a pickup location</span>}
               </div>
 
-              <div>
+              {/* Intermediate Stops */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', position: 'relative', zIndex: 40 }}>
+                <AnimatePresence initial={false}>
+                  {stops.map((stop, index) => (
+                    <motion.div
+                      key={`hero-stop-${index}`}
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.2 }}
+                      style={{ position: 'relative', zIndex: 35 - index }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: 'var(--color-nets-gold, #f59e0b)' }} />
+                          Intermediate Stop {index + 1}
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          {index > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => reorderStops(index, index - 1)}
+                              style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+                              title="Move Stop Up"
+                            >
+                              <ChevronUp size={13} />
+                            </button>
+                          )}
+                          {index < stops.length - 1 && (
+                            <button
+                              type="button"
+                              onClick={() => reorderStops(index, index + 1)}
+                              style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+                              title="Move Stop Down"
+                            >
+                              <ChevronDown size={13} />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removeStop(index)}
+                            style={{ background: 'transparent', border: 'none', color: '#ff6b6b', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center', marginLeft: '0.25rem' }}
+                            title="Remove Stop"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                      <GooglePlacesAutocomplete
+                        id={`hero-stop-${index}`}
+                        value={stop?.address || null}
+                        onChange={(val) => {
+                          updateStop(index, { ...(stop || { lat: 0, lng: 0 }), address: val })
+                        }}
+                        onLocationSelect={(loc) => updateStop(index, loc)}
+                        placeholder={`e.g. Stop ${index + 1} landmark or address`}
+                        className="input-dark"
+                        style={{ padding: '0.5rem 0.75rem', height: '40px', fontSize: '0.875rem' }}
+                      />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+
+                {stops.length < 5 && (
+                  <button
+                    type="button"
+                    onClick={() => addStop({ lat: 0, lng: 0, address: '' })}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.375rem',
+                      padding: '0.4rem 0.75rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      borderRadius: '4px',
+                      border: '1px dashed rgba(255,255,255,0.25)',
+                      background: 'rgba(255,255,255,0.04)',
+                      color: 'rgba(255,255,255,0.85)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      width: '100%'
+                    }}
+                  >
+                    <Plus size={13} color="var(--color-nets-red, #dc2626)" />
+                    <span>Add Stop along Route {stops.length > 0 ? `(${stops.length}/5)` : ''}</span>
+                  </button>
+                )}
+              </div>
+
+              <div style={{ position: 'relative', zIndex: 20 }}>
                 <label htmlFor="hero-dest" className="field-label-dark">Destination</label>
                 <GooglePlacesAutocomplete 
+                  id="hero-dest"
                   value={destination?.address || null} 
                   onChange={() => {}} 
                   onLocationSelect={setDestination} 
@@ -313,7 +411,7 @@ export function HeroSection() {
                       onChange={(e) => setPassengers(e.target.value)}
                     >
                       <option disabled>Select Passengers</option>
-                      {['1–3','4–7','8–14','15–18','19–30','31–50','50+'].map(o => <option key={o} value={o}>{o}</option>)}
+                      {['1–3','4–7','8–14','19–30'].map(o => <option key={o} value={o}>{o}</option>)}
                     </select>
                     {errors.includes('passengers') && <span style={{ color: 'var(--color-nets-red)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>Required</span>}
                   </div>
@@ -332,7 +430,7 @@ export function HeroSection() {
                       onChange={(e) => setPassengers(e.target.value)}
                     >
                       <option disabled>Select Passengers</option>
-                      {['1–3','4–7','8–14','15–18','19–30','31–50','50+'].map(o => <option key={o} value={o}>{o}</option>)}
+                      {['1–3','4–7','8–14','19–30'].map(o => <option key={o} value={o}>{o}</option>)}
                     </select>
                     {errors.includes('passengers') && <span style={{ color: 'var(--color-nets-red)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>Required</span>}
                   </div>

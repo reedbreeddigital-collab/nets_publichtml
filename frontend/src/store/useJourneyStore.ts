@@ -334,6 +334,9 @@ export const useJourneyStore = create<JourneyState>((set, get) => ({
       },
       estimatedInvestment: state.estimatedInvestment ? {
         total: state.estimatedInvestment.estimatedInvestment,
+        minimumEstimate: state.estimatedInvestment.estimatedInvestment,
+        maximumEstimate: state.estimatedInvestment.estimatedInvestment,
+        estimatedInvestment: state.estimatedInvestment.estimatedInvestment,
         baseFleetCharter: state.estimatedInvestment.baseFleetCharter ?? state.estimatedInvestment.estimatedInvestment,
         retentionFee: state.estimatedInvestment.retentionFee ?? state.estimatedInvestment.additionalRetentionFee ?? 0,
         retentionDays: state.estimatedInvestment.retentionDays ?? 0,
@@ -398,12 +401,9 @@ export const useJourneyStore = create<JourneyState>((set, get) => ({
       const deriveVehicle = (pax: string | null) => {
         if (!pax) return 'hiace';
         if (pax === '1–3') return 'sedan';
-        if (pax === '4–7') return 'sienna';
+        if (pax === '4–7') return 'suv';
         if (pax === '8–14') return 'hiace';
-        if (pax === '15–18') return 'midibus-18';
         if (pax === '19–30') return 'coaster';
-        if (pax === '31–50') return 'coaster';
-        if (pax === '50+') return 'coaster';
         return 'hiace';
       }
 
@@ -452,6 +452,7 @@ export const useJourneyStore = create<JourneyState>((set, get) => ({
             useReferenceDistance: true,
           })
           estimate.estimatedInvestment += addEstimate.estimatedInvestment
+          estimate.baseFleetCharter = (estimate.baseFleetCharter ?? 0) + (addEstimate.baseFleetCharter ?? addEstimate.estimatedInvestment)
           estimate.vehicleName += ` + ${addEstimate.vehicleName}`
         }
       }

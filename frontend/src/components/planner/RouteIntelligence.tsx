@@ -61,20 +61,49 @@ export function RouteIntelligence() {
           throw new Error('Coordinates missing and could not be geocoded')
         }
 
-        const waypoints = stops.filter((s: LocationData) => s.lat && s.lng)
-        
+        // Resolve coordinates for any intermediate stops that have addresses
+        const validWaypoints: { lat: number; lng: number }[] = []
+        if (Array.isArray(stops)) {
+          for (let i = 0; i < stops.length; i++) {
+            const s = stops[i]
+            if (!s || !s.address || !s.address.trim()) continue
+            let sLat = s.lat
+            let sLng = s.lng
+            if ((!sLat || !sLng || (sLat === 0 && sLng === 0)) && s.address.trim().length > 2) {
+              const coords = await geocodeAddress(s.address)
+              if (coords) {
+                sLat = coords.lat
+                sLng = coords.lng
+              }
+            }
+            if (sLat && sLng && (sLat !== 0 || sLng !== 0)) {
+              validWaypoints.push({ lat: sLat, lng: sLng })
+            }
+          }
+        }
+
         const directionsService = new routesLibrary.DirectionsService()
         const request: google.maps.DirectionsRequest = {
           origin: { lat: pLat, lng: pLng },
           destination: { lat: dLat, lng: dLng },
-          waypoints: waypoints.map((s: LocationData) => ({ location: { lat: s.lat!, lng: s.lng! }, stopover: true })),
+          waypoints: validWaypoints.map((w) => ({
+            location: { lat: w.lat, lng: w.lng },
+            stopover: true
+          })),
           travelMode: google.maps.TravelMode.DRIVING,
         }
 
         const result = await directionsService.route(request)
+        if (map) {
+          directionsRenderer.setMap(map)
+        }
         directionsRenderer.setDirections(result)
-        
-        const route = result.routes[0]
+
+        const route = result.routes?.[0]
+        if (!route) {
+          throw new Error('No route found in directions result')
+        }
+
         let totalDistanceMeters = 0
         let totalDurationSeconds = 0
 
@@ -85,19 +114,23 @@ export function RouteIntelligence() {
 
         const distanceKm = Math.round((totalDistanceMeters / 1000) * 10) / 10
         const durationMins = Math.round(totalDurationSeconds / 60)
-        
+
         const insights: string[] = []
         if (distanceKm > 100) insights.push('Long Distance Journey')
         if (distanceKm > 300) insights.push('Interstate Journey')
         if (distanceKm <= 50) insights.push('Urban Journey')
-        
+
         if (destination.country && destination.country !== 'Nigeria') {
           insights.push('International Border Crossing - Special Request')
         }
 
         const bounds = route.bounds
-        const sw = bounds.getSouthWest()
-        const ne = bounds.getNorthEast()
+        let journeyBounds: [[number, number], [number, number]] | null = null
+        if (bounds && typeof bounds.getSouthWest === 'function' && typeof bounds.getNorthEast === 'function') {
+          const sw = bounds.getSouthWest()
+          const ne = bounds.getNorthEast()
+          journeyBounds = [[sw.lng(), sw.lat()], [ne.lng(), ne.lat()]]
+        }
 
         setRouteCalculations({
           distanceKm,
@@ -105,18 +138,25 @@ export function RouteIntelligence() {
           durationMins,
           durationSeconds: totalDurationSeconds,
           durationText: `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`,
-          routePolyline: route.overview_polyline, // Storing encoded polyline just in case
-          journeyBounds: [[sw.lng(), sw.lat()], [ne.lng(), ne.lat()]], // Format for bounds
+          routePolyline: route.overview_polyline,
+          journeyBounds,
           journeyInsights: insights
         })
 
       } catch (err) {
         console.warn('Google Directions failed, using Haversine fallback', err)
-        directionsRenderer.setDirections({ routes: [] } as any)
-        
+        try {
+          directionsRenderer.setMap(null)
+        } catch (_) {}
+
         // Fallback calculation
         let totalKm = 0
-        const points = [pickup, ...stops, destination].filter(p => p && p.lat && p.lng) as any[]
+        const points = [
+          pickup && pickup.lat && pickup.lng ? { lat: pickup.lat, lng: pickup.lng } : null,
+          ...(Array.isArray(stops) ? stops.filter(s => s && s.lat && s.lng && (s.lat !== 0 || s.lng !== 0)) : []),
+          destination && destination.lat && destination.lng ? { lat: destination.lat, lng: destination.lng } : null
+        ].filter(Boolean) as { lat: number; lng: number }[]
+
         for (let i = 0; i < points.length - 1; i++) {
           totalKm += getFallbackDistanceKm(points[i].lat, points[i].lng, points[i+1].lat, points[i+1].lng)
         }
@@ -141,7 +181,7 @@ export function RouteIntelligence() {
     }
 
     calculateRoute()
-  }, [pickup, destination, stops, setRouteCalculations, routesLibrary, directionsRenderer])
+  }, [map, pickup, destination, stops, setRouteCalculations, routesLibrary, directionsRenderer])
 
   return null
 }

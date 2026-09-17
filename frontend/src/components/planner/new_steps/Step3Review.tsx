@@ -46,7 +46,7 @@ export function Step3Review() {
             </div>
 
             {/* Intermediate Stops */}
-            {stops && stops.map((stop, idx) => (
+            {Array.isArray(stops) && stops.filter(s => s && s.address && s.address.trim()).map((stop, idx) => (
               <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem', marginLeft: '1px' }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '50%', background: 'var(--color-nets-navy-dark)', color: '#fff', fontSize: '0.6875rem', fontWeight: 700, flexShrink: 0, marginTop: 2 }}>
                   {idx + 1}

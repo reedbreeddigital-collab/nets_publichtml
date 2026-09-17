@@ -11,7 +11,7 @@ function MapBoundsController() {
   useEffect(() => {
     if (!map) return
 
-    if (journeyBounds) {
+    if (journeyBounds && journeyBounds.length === 2 && journeyBounds[0] && journeyBounds[1]) {
       const bounds = new google.maps.LatLngBounds()
       bounds.extend(new google.maps.LatLng(journeyBounds[0][1], journeyBounds[0][0]))
       bounds.extend(new google.maps.LatLng(journeyBounds[1][1], journeyBounds[1][0]))
@@ -20,12 +20,12 @@ function MapBoundsController() {
     }
 
     // Fallback bounds calculation
-    const points = [pickup, ...stops, destination].filter(p => p && p.lat && p.lng)
+    const points = [pickup, ...(Array.isArray(stops) ? stops : []), destination].filter(p => p && p.lat && p.lng && (p.lat !== 0 || p.lng !== 0))
     
     if (points.length > 0) {
       const bounds = new google.maps.LatLngBounds()
       points.forEach(p => {
-        if (!p) return
+        if (!p || !p.lat || !p.lng) return
         bounds.extend(new google.maps.LatLng(p.lat, p.lng))
       })
       map.fitBounds(bounds, 50)
@@ -53,18 +53,18 @@ export function InteractiveMap() {
         <RouteIntelligence />
 
         {/* Pickup Marker */}
-        {pickup && pickup.lat && pickup.lng && (
+        {pickup && pickup.lat && pickup.lng && (pickup.lat !== 0 || pickup.lng !== 0) && (
           <AdvancedMarker position={{ lat: pickup.lat, lng: pickup.lng }}>
-            <div style={{ width: '16px', height: '16px', background: '#fff', border: '4px solid var(--color-nets-navy)', borderRadius: '50%', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }} />
+            <div style={{ width: '18px', height: '18px', background: '#10b981', border: '3px solid #fff', borderRadius: '50%', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }} />
           </AdvancedMarker>
         )}
 
         {/* Stops Markers */}
-        {stops.map((stop, i) => {
-          if (!stop.lat || !stop.lng) return null
+        {Array.isArray(stops) && stops.map((stop, i) => {
+          if (!stop || !stop.lat || !stop.lng || (stop.lat === 0 && stop.lng === 0)) return null
           return (
-            <AdvancedMarker key={i} position={{ lat: stop.lat, lng: stop.lng }}>
-              <div style={{ width: '16px', height: '16px', background: 'var(--color-nets-navy)', border: '2px solid #fff', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.6rem', fontWeight: 700 }}>
+            <AdvancedMarker key={`stop-${i}-${stop.lat}-${stop.lng}`} position={{ lat: stop.lat, lng: stop.lng }}>
+              <div style={{ width: '22px', height: '22px', background: 'var(--color-nets-navy)', border: '2px solid #fff', borderRadius: '50%', boxShadow: '0 2px 6px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.6875rem', fontWeight: 700 }}>
                 {i + 1}
               </div>
             </AdvancedMarker>
@@ -72,9 +72,9 @@ export function InteractiveMap() {
         })}
 
         {/* Destination Marker */}
-        {destination && destination.lat && destination.lng && (
+        {destination && destination.lat && destination.lng && (destination.lat !== 0 || destination.lng !== 0) && (
           <AdvancedMarker position={{ lat: destination.lat, lng: destination.lng }}>
-            <div style={{ width: '20px', height: '20px', background: 'var(--color-nets-red)', border: '4px solid #fff', borderRadius: '50%', boxShadow: '0 4px 12px rgba(192,39,45,0.4)' }} />
+            <div style={{ width: '20px', height: '20px', background: 'var(--color-nets-red)', border: '3px solid #fff', borderRadius: '50%', boxShadow: '0 4px 12px rgba(192,39,45,0.4)' }} />
           </AdvancedMarker>
         )}
 

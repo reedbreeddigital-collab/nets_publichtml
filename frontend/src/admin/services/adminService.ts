@@ -227,31 +227,40 @@ export class AdminService {
     }
 
     // Normalize all database leads to guarantee safe rendering
-    return remoteLeads.map((l: any, idx) => ({
-      id: l.id || `lead-${idx}`,
-      leadReference: l.leadReference || `NETS-LEAD-${String(l.id || idx).padStart(4, '0')}`,
-      customerName: l.customerName || 'Valued Customer',
-      customerEmail: l.customerEmail || 'N/A',
-      customerPhone: l.customerPhone || 'N/A',
-      company: l.company || '',
-      heardAboutUs: l.heardAboutUs || '',
-      journeyType: l.journeyType || 'Standard Charter',
-      origin: l.origin || 'Lagos, Nigeria',
-      destination: l.destination || 'Lagos, Nigeria',
-      estimatedInvestmentMin: Number(l.estimatedInvestmentMin) || 0,
-      estimatedInvestmentMax: Number(l.estimatedInvestmentMax) || Number(l.estimatedInvestmentMin) || 0,
-      status: l.status || 'pending',
-      crmStatus: l.crmStatus || 'New Lead',
-      assignedTo: l.assignedTo || '',
-      firstContactedAt: l.firstContactedAt || undefined,
-      firstContactedBy: l.firstContactedBy || undefined,
-      responseTimeSec: l.responseTimeSec !== undefined && l.responseTimeSec !== null ? Number(l.responseTimeSec) : undefined,
-      closedAt: l.closedAt || undefined,
-      closeTimeSec: l.closeTimeSec !== undefined && l.closeTimeSec !== null ? Number(l.closeTimeSec) : undefined,
-      notes: l.notes || '',
-      createdAt: l.createdAt || new Date().toISOString(),
-      payload: parsePayload(l.payload || l.payloadJSON),
-    }))
+    return remoteLeads.map((l: any, idx) => {
+      const payloadObj = parsePayload(l.payload || l.payloadJSON)
+      const payloadPrice = Number(payloadObj?.estimatedInvestment?.total) ||
+        Number(payloadObj?.estimatedInvestment?.maximumEstimate) ||
+        Number(payloadObj?.estimatedInvestment?.minimumEstimate) ||
+        Number(payloadObj?.estimatedInvestment?.estimatedInvestment) ||
+        0
+
+      return {
+        id: l.id || idx + 1,
+        leadReference: l.leadReference || `NETS-LD-${idx + 1}`,
+        customerName: l.customerName || 'Anonymous Customer',
+        customerEmail: l.customerEmail || 'no-email@customer.com',
+        customerPhone: l.customerPhone || 'N/A',
+        company: l.company || '',
+        heardAboutUs: l.heardAboutUs || '',
+        journeyType: l.journeyType || 'Standard Charter',
+        origin: l.origin || 'Lagos, Nigeria',
+        destination: l.destination || 'Lagos, Nigeria',
+        estimatedInvestmentMin: Number(l.estimatedInvestmentMin) || payloadPrice || 0,
+        estimatedInvestmentMax: Number(l.estimatedInvestmentMax) || Number(l.estimatedInvestmentMin) || payloadPrice || 0,
+        status: l.status || 'pending',
+        crmStatus: l.crmStatus || 'New Lead',
+        assignedTo: l.assignedTo || '',
+        firstContactedAt: l.firstContactedAt || undefined,
+        firstContactedBy: l.firstContactedBy || undefined,
+        responseTimeSec: l.responseTimeSec !== undefined && l.responseTimeSec !== null ? Number(l.responseTimeSec) : undefined,
+        closedAt: l.closedAt || undefined,
+        closeTimeSec: l.closeTimeSec !== undefined && l.closeTimeSec !== null ? Number(l.closeTimeSec) : undefined,
+        notes: l.notes || '',
+        createdAt: l.createdAt || new Date().toISOString(),
+        payload: payloadObj,
+      }
+    })
   }
 
   /**
@@ -273,6 +282,13 @@ export class AdminService {
               return null
             }
           }
+          const payloadObj = parsePayload(l.payload || l.payloadJSON)
+          const payloadPrice = Number(payloadObj?.estimatedInvestment?.total) ||
+            Number(payloadObj?.estimatedInvestment?.maximumEstimate) ||
+            Number(payloadObj?.estimatedInvestment?.minimumEstimate) ||
+            Number(payloadObj?.estimatedInvestment?.estimatedInvestment) ||
+            0
+
           return {
             id: l.id,
             leadReference: l.leadReference,
@@ -284,8 +300,8 @@ export class AdminService {
             journeyType: l.journeyType || 'Standard Charter',
             origin: l.origin || 'Lagos, Nigeria',
             destination: l.destination || 'Lagos, Nigeria',
-            estimatedInvestmentMin: Number(l.estimatedInvestmentMin) || 0,
-            estimatedInvestmentMax: Number(l.estimatedInvestmentMax) || Number(l.estimatedInvestmentMin) || 0,
+            estimatedInvestmentMin: Number(l.estimatedInvestmentMin) || payloadPrice || 0,
+            estimatedInvestmentMax: Number(l.estimatedInvestmentMax) || Number(l.estimatedInvestmentMin) || payloadPrice || 0,
             status: l.status || 'pending',
             crmStatus: l.crmStatus || 'New Lead',
             assignedTo: l.assignedTo || '',
@@ -296,7 +312,7 @@ export class AdminService {
             closeTimeSec: l.closeTimeSec !== undefined && l.closeTimeSec !== null ? Number(l.closeTimeSec) : undefined,
             notes: l.notes || '',
             createdAt: l.createdAt || new Date().toISOString(),
-            payload: parsePayload(l.payload || l.payloadJSON),
+            payload: payloadObj,
           }
         }
       }

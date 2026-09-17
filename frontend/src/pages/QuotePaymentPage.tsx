@@ -22,6 +22,7 @@ import { adminService, type AdminLead } from '../admin/services/adminService'
 import { useAdminStore } from '../admin/store/useAdminStore'
 import { PAYSTACK_PUBLIC_KEY } from '../config/api'
 import { emailService } from '../services/emailService'
+import { PaymentNoticeModal } from '../components/payment/PaymentNoticeModal'
 
 const fmtCurrency = (n: number) => `₦${Math.round(n).toLocaleString('en-NG')}`
 
@@ -36,6 +37,7 @@ export function QuotePaymentPage() {
   const [copied, setCopied] = useState(false)
   const [paidSuccess, setPaidSuccess] = useState(false)
   const [paymentRef, setPaymentRef] = useState<string>('')
+  const [showPaymentNotice, setShowPaymentNotice] = useState(false)
 
   // Load Paystack Inline script dynamically
   useEffect(() => {
@@ -137,7 +139,37 @@ export function QuotePaymentPage() {
     setTimeout(() => setCopied(false), 2500)
   }
 
+  const ensurePaystackLoaded = (): Promise<boolean> => {
+    if ((window as any).PaystackPop) return Promise.resolve(true)
+    return new Promise((resolve) => {
+      const existing = document.querySelector('script[src*="paystack"]')
+      if (existing) {
+        existing.addEventListener('load', () => resolve(true))
+        setTimeout(() => resolve(Boolean((window as any).PaystackPop)), 1500)
+        return
+      }
+      const script = document.createElement('script')
+      script.src = 'https://js.paystack.co/v1/inline.js'
+      script.async = true
+      script.onload = () => resolve(true)
+      script.onerror = () => resolve(false)
+      document.body.appendChild(script)
+    })
+  }
+
   const handlePaystackPayment = () => {
+    if (!lead) return
+
+    const amount = lead.estimatedInvestmentMax || lead.estimatedInvestmentMin || 0
+    if (amount <= 0) {
+      alert('Invalid quotation amount. Please contact NETS dispatch.')
+      return
+    }
+
+    setShowPaymentNotice(true)
+  }
+
+  const initiatePaystack = async () => {
     if (!lead) return
 
     const amount = lead.estimatedInvestmentMax || lead.estimatedInvestmentMin || 0
@@ -148,68 +180,69 @@ export function QuotePaymentPage() {
 
     setIsProcessing(true)
 
-    const customerEmail = lead.customerEmail && lead.customerEmail !== 'N/A' ? lead.customerEmail : 'dispatch@neweratransports.com'
-    const generatedRef = `NETS-PAY-${lead.leadReference || 'QUOTE'}-${Date.now()}`
-
-    if (paystackLoaded && (window as any).PaystackPop) {
-      try {
-        const handler = (window as any).PaystackPop.setup({
-          key: PAYSTACK_PUBLIC_KEY,
-          email: customerEmail,
-          amount: Math.round(amount * 100), // In kobo
-          currency: 'NGN',
-          ref: generatedRef,
-          metadata: {
-            custom_fields: [
-              { display_name: 'Quotation Ref', variable_name: 'quote_ref', value: lead.leadReference },
-              { display_name: 'Customer Name', variable_name: 'customer_name', value: lead.customerName },
-              { display_name: 'Route', variable_name: 'route', value: `${lead.origin} to ${lead.destination}` },
-            ],
-          },
-          callback: async (response: any) => {
-            console.log('Paystack Payment Successful:', response)
-            setPaymentRef(response.reference || generatedRef)
-            
-            // Mark lead as Won & Paid in database
-            await adminService.updateLeadStatus(lead.id, 'converted')
-            await adminService.updateCrmStatus(lead.id, 'Won & Paid')
-
-            // Send confirmation notifications
-            emailService.sendNewBookingNotification({
-              reference: generatedRef,
-              customerName: lead.customerName,
-              customerEmail: lead.customerEmail,
-              customerPhone: lead.customerPhone,
-              vehicleName: lead.payload?.estimatedInvestment?.vehicleName || lead.journeyType || 'Charter Fleet',
-              pickup: lead.origin,
-              destination: lead.destination,
-              travelDate: lead.payload?.journeyInformation?.travelDate || lead.createdAt,
-              totalAmount: amount,
-              paymentStatus: 'paid',
-            })
-
-            setIsProcessing(false)
-            setPaidSuccess(true)
-          },
-          onClose: () => {
-            setIsProcessing(false)
-          },
-        })
-        handler.openIframe()
-        return
-      } catch (err) {
-        console.warn('Paystack popup initialization error, simulating:', err)
-      }
+    const isLoaded = await ensurePaystackLoaded()
+    if (!isLoaded || !(window as any).PaystackPop) {
+      alert('Paystack payment modal could not be loaded. Please ensure you have an active internet connection or disable content blockers and try again.')
+      setIsProcessing(false)
+      return
     }
 
-    // Offline / Test Fallback
-    setTimeout(async () => {
-      setPaymentRef(generatedRef)
-      await adminService.updateLeadStatus(lead.id, 'converted')
-      await adminService.updateCrmStatus(lead.id, 'Won & Paid')
+    const customerEmail = lead.customerEmail && lead.customerEmail !== 'N/A' && lead.customerEmail.includes('@')
+      ? lead.customerEmail
+      : 'customer@neweratransports.com'
+    const generatedRef = `NETS-PAY-${lead.leadReference || 'QUOTE'}-${Date.now()}`
+
+    try {
+      const handler = (window as any).PaystackPop.setup({
+        key: PAYSTACK_PUBLIC_KEY,
+        email: customerEmail,
+        amount: Math.round(amount * 100), // In kobo
+        currency: 'NGN',
+        ref: generatedRef,
+        metadata: {
+          custom_fields: [
+            { display_name: 'Quotation Ref', variable_name: 'quote_ref', value: lead.leadReference },
+            { display_name: 'Customer Name', variable_name: 'customer_name', value: lead.customerName },
+            { display_name: 'Route', variable_name: 'route', value: `${lead.origin} to ${lead.destination}` },
+          ],
+        },
+        callback: async (response: any) => {
+          console.log('Paystack Payment Successful:', response)
+          setPaymentRef(response.reference || generatedRef)
+          
+          // Mark lead as Won & Paid in database
+          await adminService.updateLeadStatus(lead.id, 'converted')
+          await adminService.updateCrmStatus(lead.id, 'Won & Paid')
+
+          // Send confirmation notifications
+          emailService.sendNewBookingNotification({
+            reference: generatedRef,
+            customerName: lead.customerName,
+            customerEmail: lead.customerEmail,
+            customerPhone: lead.customerPhone,
+            vehicleName: lead.payload?.estimatedInvestment?.vehicleName || lead.journeyType || 'Charter Fleet',
+            pickup: lead.origin,
+            destination: lead.destination,
+            travelDate: lead.payload?.journeyInformation?.travelDate || lead.createdAt,
+            totalAmount: amount,
+            paymentStatus: 'paid',
+          })
+
+          setShowPaymentNotice(false)
+          setIsProcessing(false)
+          setPaidSuccess(true)
+        },
+        onClose: () => {
+          setIsProcessing(false)
+        },
+      })
+      handler.openIframe()
+      setShowPaymentNotice(false)
+    } catch (err) {
+      console.error('Paystack popup initialization error:', err)
+      alert('Failed to initialize Paystack payment modal. Please try again.')
       setIsProcessing(false)
-      setPaidSuccess(true)
-    }, 1200)
+    }
   }
 
   if (loading) {
@@ -685,6 +718,14 @@ export function QuotePaymentPage() {
         </div>
 
       </div>
+
+      <PaymentNoticeModal
+        isOpen={showPaymentNotice}
+        onClose={() => setShowPaymentNotice(false)}
+        onConfirm={initiatePaystack}
+        amount={lead ? (lead.estimatedInvestmentMax || lead.estimatedInvestmentMin || 0) : 0}
+        isProcessing={isProcessing}
+      />
     </div>
   )
 }

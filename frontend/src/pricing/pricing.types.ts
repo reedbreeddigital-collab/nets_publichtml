@@ -224,8 +224,12 @@ export interface EstimatedInvestment {
   vehicleName: string
   /** Whether minimum charge was applied */
   minimumChargeApplied: boolean
-  /** Pricing notes for ops team */
-  pricingNotes: string[]
+  /** Calculation breakdown details */
+  dailyFuelCost?: number
+  dailyFixedOps?: number
+  dailyBaseCost?: number
+  markupPercent?: number
+  tripsPerDay?: number
   /** Pricing engine version */
   pricingVersion: string
   /** Calculation timestamp */

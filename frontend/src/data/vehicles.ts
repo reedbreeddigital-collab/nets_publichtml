@@ -76,22 +76,5 @@ export const vehicles: Vehicle[] = [
     airConditioning: 'Multi-Zone Automatic Climate Control',
     recommendedFor: ['VIP Transport', 'Airport Pickups'],
     gallery: ['/vehicles/Sedan.jpeg']
-  },
-  {
-    id: 'sienna',
-    name: 'Toyota Sienna',
-    slug: 'toyota-sienna',
-    capacity: 7,
-    category: 'Standard',
-    bestFor: 'Family Travel · Airport Transfers · Executive Teams',
-    imageUrl: '/vehicles/Sienna.jpeg',
-    features: ['Air Conditioning', 'Comfortable Seats', 'Professional Driver', 'Privacy Glass'],
-    available: true,
-    editorialStory: 'A premium minivan offering exceptional comfort, space, and a smooth ride for small groups and families.',
-    comfortRating: 'Executive',
-    luggageSpace: 'Standard (Good for medium suitcases)',
-    airConditioning: 'Multi-Zone Automatic Climate Control',
-    recommendedFor: ['Airport Transfers', 'Family Travel', 'Executive Teams'],
-    gallery: ['/vehicles/Sienna.jpeg']
   }
 ]

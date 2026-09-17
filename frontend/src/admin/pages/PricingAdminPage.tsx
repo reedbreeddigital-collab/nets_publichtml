@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import { Save, RefreshCw, Info } from 'lucide-react'
 
 import { fetchPricingConfig, savePricingConfig, type PricingConfig } from '../../pricing/adminPricingConfig'
+import { calculatePricingFromConfig } from '../../pricing/estimateGenerator'
 
 type VehicleTab = 'coaster' | 'hiace' | 'saloon'
 
@@ -57,7 +58,7 @@ export function PricingAdminPage() {
   const [error, setError] = useState<string | null>(null)
   const [history, setHistory] = useState<{ timestamp: string; config: PricingConfig }[]>([])
   const [activeTab, setActiveTab] = useState<VehicleTab>('hiace')
-  const [previewTripType, setPreviewTripType] = useState<'One-Way' | 'Return'>('One-Way')
+  const [previewTripType, setPreviewTripType] = useState<'One-Way' | 'Return' | 'Multi-Day'>('One-Way')
 
   useEffect(() => {
     let mounted = true
@@ -227,27 +228,21 @@ export function PricingAdminPage() {
             
             {(() => {
               const distanceKm = 100
-              
-              const isOneWay = previewTripType === 'One-Way'
-              const trips = (isOneWay && !config.billOneWayAsReturn) ? 1 : 2
-              
-              const fuelRatio = (config as any)[activeFields.fuelRatio.key]
-              const fuelCost = distanceKm * trips * fuelRatio * config.fuelPricePerLitre
-              
-              const fixedOps = 
-                (config as any)[activeFields.salary.key] + 
-                (config as any)[activeFields.maintenance.key] + 
-                (config as any)[activeFields.security.key] + 
-                (config as any)[activeFields.levies.key] + 
-                (config as any)[activeFields.outstation.key] + 
-                (config as any)[activeFields.depreciation.key]
-                
-              const baseCost = fuelCost + fixedOps
-              
-              const markupPercent = (config as any)[activeFields.markup.key]
-              const withMarkup = baseCost * (1 + markupPercent / 100)
-              
-              const final = withMarkup
+              const isMultiDay = previewTripType === 'Multi-Day'
+              const estimate = calculatePricingFromConfig({
+                vehicleId: activeTab,
+                distanceKm,
+                tripType: previewTripType as any,
+                numberOfDays: isMultiDay ? 3 : 1,
+              }, config)
+
+              const trips = estimate.tripsPerDay ?? (previewTripType === 'One-Way' && !config.billOneWayAsReturn ? 1 : 2)
+              const fuelCost = estimate.dailyFuelCost ?? 0
+              const fixedOps = estimate.dailyFixedOps ?? 0
+              const baseCost = estimate.dailyBaseCost ?? (fuelCost + fixedOps)
+              const markupPercent = estimate.markupPercent ?? 0
+              const markupAmount = (estimate.baseFleetCharter ?? estimate.estimatedInvestment) - baseCost
+              const final = estimate.estimatedInvestment
               const fmt = (n: number) => `₦${Math.round(n).toLocaleString('en-NG')}`
               return (
                 <div>
@@ -257,7 +252,7 @@ export function PricingAdminPage() {
                     </div>
                     <select
                       value={previewTripType}
-                      onChange={(e) => setPreviewTripType(e.target.value as 'One-Way' | 'Return')}
+                      onChange={(e) => setPreviewTripType(e.target.value as 'One-Way' | 'Return' | 'Multi-Day')}
                       style={{
                         padding: '0.25rem 0.5rem',
                         fontSize: 12,
@@ -269,14 +264,15 @@ export function PricingAdminPage() {
                     >
                       <option value="One-Way">One-Way</option>
                       <option value="Return">Return (or Billed as Return)</option>
+                      <option value="Multi-Day">Multi-Day (Outstation)</option>
                     </select>
                   </div>
                   
                   {[
                     [`Fuel Cost (100km × ${trips} trip(s) × ratio × price)`, fmt(fuelCost)], 
-                    ['Fixed Ops (Salary, Maint, Sec, Levy, Dep)', fmt(fixedOps)], 
+                    [`Fixed Ops (${isMultiDay ? 'Salary, Maint, Sec, Levy, Outstation, Dep' : 'Salary, Maint, Sec, Levy, Dep'})`, fmt(fixedOps)], 
                     ['Running Total (Base Cost)', fmt(baseCost)], 
-                    [`+ Mark-Up (${markupPercent}%)`, fmt(withMarkup - baseCost)],
+                    [`+ Mark-Up (${markupPercent}%)`, fmt(markupAmount)],
                   ].map(([l,v]) => (
                     <div key={l as string} className="admin-detail-row">
                       <span className="admin-detail-label" style={{ fontSize: 12 }}>{l}</span>

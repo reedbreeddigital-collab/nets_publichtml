@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useJourneyStore } from '../store/useJourneyStore'
 import { PlannerLayout } from '../components/planner/PlannerLayout'
 import { Step1Locations } from '../components/planner/new_steps/Step1Locations'
@@ -10,10 +10,12 @@ import { usePaystackPayment } from 'react-paystack'
 import { PAYSTACK_PUBLIC_KEY, API_URL } from '../config/api'
 import { crmService } from '../services/crmService'
 import { emailService } from '../services/emailService'
+import { PaymentNoticeModal } from '../components/payment/PaymentNoticeModal'
 
 export function JourneyPlannerPage() {
   const state = useJourneyStore()
   const { currentStep, nextStep, prevStep } = state
+  const [showPaymentNotice, setShowPaymentNotice] = useState(false)
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -23,7 +25,20 @@ export function JourneyPlannerPage() {
       state.setLeadModalNextAction('planner')
       state.setLeadModalOpen(true)
     }
-  }, [currentStep])
+
+    // Auto-sync calculated quote to backend when reaching Step 3 (Review / End of planner)
+    if (currentStep === 3 && state.pickup && state.destination) {
+      if (!state.referenceNumber) {
+        state.generateReference()
+      }
+      const payload = state.getCRMLeadPayload()
+      if (payload.customerInformation?.name || payload.customerInformation?.email) {
+        crmService.submitLead(payload).catch((err) => {
+          console.warn('Backend quote submission at step 3 error:', err)
+        })
+      }
+    }
+  }, [currentStep, state.pickup, state.destination, state.estimatedInvestment])
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -141,6 +156,12 @@ export function JourneyPlannerPage() {
       return
     }
 
+    setShowPaymentNotice(true)
+  }
+
+  const proceedWithPaystack = () => {
+    setShowPaymentNotice(false)
+
     // Fire Meta Pixel InitiateCheckout event
     if ((window as any).fbq) {
       ;(window as any).fbq('track', 'InitiateCheckout')
@@ -219,6 +240,13 @@ export function JourneyPlannerPage() {
           </button>
         </div>
       )}
+
+      <PaymentNoticeModal
+        isOpen={showPaymentNotice}
+        onClose={() => setShowPaymentNotice(false)}
+        onConfirm={proceedWithPaystack}
+        amount={state.estimatedInvestment?.estimatedInvestment}
+      />
     </>
   )
 }

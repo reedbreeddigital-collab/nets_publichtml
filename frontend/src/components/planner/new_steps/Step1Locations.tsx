@@ -136,8 +136,10 @@ export function Step1Locations() {
                 </div>
 
                 <GooglePlacesAutocomplete
-                  value={stop?.address || null}
-                  onChange={(val) => updateStop(index, { ...stop, address: val })}
+                  value={stop?.address || ''}
+                  onChange={(val) => {
+                    updateStop(index, { ...(stop || { lat: 0, lng: 0 }), address: val })
+                  }}
                   onLocationSelect={(loc) => updateStop(index, loc)}
                   placeholder={`Enter Stop ${index + 1} address or landmark`}
                   className="input"
