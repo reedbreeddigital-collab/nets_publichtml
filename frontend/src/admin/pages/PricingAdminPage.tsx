@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react'
 import { Save, RefreshCw, Info } from 'lucide-react'
 
-import { fetchPricingConfig, savePricingConfig, type PricingConfig } from '../../pricing/adminPricingConfig'
+import { fetchPricingConfig, savePricingConfig, type PricingConfig, DEFAULT_DEPOT_ADDRESS } from '../../pricing/adminPricingConfig'
 import { calculatePricingFromConfig } from '../../pricing/estimateGenerator'
 
 type VehicleTab = 'coaster' | 'hiace' | 'saloon'
@@ -163,6 +163,37 @@ export function PricingAdminPage() {
                   checked={config.billOneWayAsReturn || false} 
                   onChange={e => setConfig(c => c ? { ...c, billOneWayAsReturn: e.target.checked } : null)}
                   style={{ width: 18, height: 18, cursor: 'pointer', accentColor: 'var(--adm-accent)' }}
+                />
+              </div>
+            </div>
+
+            <div className="admin-pricing-row" style={{ marginTop: '1rem', borderTop: '1px solid var(--adm-border-subtle)', paddingTop: '1rem' }}>
+              <div>
+                <div className="admin-pricing-row-label">Include Repositioning Distance (Depot to Pickup)</div>
+                <div className="admin-pricing-row-desc">Silently factors the distance from depot to pickup (multiplied by 2 for outbound and return legs) into pricing. Customer route display remains unchanged.</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                <input 
+                  type="checkbox" 
+                  checked={config.includeRepositioningDistance ?? true} 
+                  onChange={e => setConfig(c => c ? { ...c, includeRepositioningDistance: e.target.checked } : null)}
+                  style={{ width: 18, height: 18, cursor: 'pointer', accentColor: 'var(--adm-accent)' }}
+                />
+              </div>
+            </div>
+
+            <div className="admin-pricing-row" style={{ marginTop: '1rem', borderTop: '1px solid var(--adm-border-subtle)', paddingTop: '1rem' }}>
+              <div>
+                <div className="admin-pricing-row-label">Depot / Fleet Base Address</div>
+                <div className="admin-pricing-row-desc">Fixed starting hub used to calculate deadhead repositioning mileage</div>
+              </div>
+              <div style={{ width: '100%', maxWidth: '280px' }}>
+                <input
+                  className="admin-input"
+                  type="text"
+                  value={config.depotAddress || DEFAULT_DEPOT_ADDRESS}
+                  onChange={e => setConfig(c => c ? { ...c, depotAddress: e.target.value } : null)}
+                  style={{ textAlign: 'left', fontSize: '12px' }}
                 />
               </div>
             </div>

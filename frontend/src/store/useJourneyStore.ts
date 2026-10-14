@@ -69,13 +69,15 @@ interface JourneyState {
   // Routing Intelligence (Phase 4 -> 5)
   distanceKm: number
   distanceMeters: number
+  depotDistanceKm: number
+  billableDistanceKm: number
   durationMins: number
   durationSeconds: number
   durationText: string
   routePolyline: any | null
   journeyBounds: any | null
   journeyInsights: string[]
-  setRouteCalculations: (calc: { distanceKm: number, distanceMeters: number, durationMins: number, durationSeconds: number, durationText: string, routePolyline: any | null, journeyBounds: any | null, journeyInsights: string[] }) => void
+  setRouteCalculations: (calc: { distanceKm: number, distanceMeters: number, depotDistanceKm?: number, billableDistanceKm?: number, durationMins: number, durationSeconds: number, durationText: string, routePolyline: any | null, journeyBounds: any | null, journeyInsights: string[] }) => void
 
   // Step 4
   passengers: string | null
@@ -184,6 +186,8 @@ export const useJourneyStore = create<JourneyState>((set, get) => ({
 
   distanceKm: 0,
   distanceMeters: 0,
+  depotDistanceKm: 0,
+  billableDistanceKm: 0,
   durationMins: 0,
   durationSeconds: 0,
   durationText: '',
@@ -310,6 +314,9 @@ export const useJourneyStore = create<JourneyState>((set, get) => ({
         destination: state.destination,
         stops: state.stops,
         distanceKm: state.distanceKm,
+        routeDistanceKm: state.distanceKm,
+        depotDistanceKm: state.depotDistanceKm,
+        billableDistanceKm: state.billableDistanceKm,
         distanceMeters: state.distanceMeters,
         estimatedDurationMins: state.durationMins,
         durationSeconds: state.durationSeconds,
@@ -342,6 +349,9 @@ export const useJourneyStore = create<JourneyState>((set, get) => ({
         retentionDays: state.estimatedInvestment.retentionDays ?? 0,
         retentionRate: state.estimatedInvestment.retentionRate ?? 0,
         distanceKm: state.estimatedInvestment.distanceKm ?? state.distanceKm,
+        routeDistanceKm: state.estimatedInvestment.routeDistanceKm ?? state.distanceKm,
+        depotDistanceKm: state.estimatedInvestment.depotDistanceKm ?? state.depotDistanceKm,
+        billableDistanceKm: state.estimatedInvestment.billableDistanceKm ?? state.billableDistanceKm,
         rateTier: state.estimatedInvestment.rateTier,
         vehicleName: state.estimatedInvestment.vehicleName,
         pricingVersion: state.estimatedInvestment.pricingVersion,
@@ -412,6 +422,9 @@ export const useJourneyStore = create<JourneyState>((set, get) => ({
       const estimate = await generateEstimate({
         vehicleId,
         distanceKm: state.distanceKm,
+        routeDistanceKm: state.distanceKm,
+        depotDistanceKm: state.depotDistanceKm,
+        billableDistanceKm: state.billableDistanceKm,
         distanceMeters: state.distanceMeters,
         durationMinutes: state.durationMins,
         durationSeconds: state.durationSeconds,
@@ -435,6 +448,9 @@ export const useJourneyStore = create<JourneyState>((set, get) => ({
           const addEstimate = await generateEstimate({
             vehicleId: addVehId,
             distanceKm: state.distanceKm,
+            routeDistanceKm: state.distanceKm,
+            depotDistanceKm: state.depotDistanceKm,
+            billableDistanceKm: state.billableDistanceKm,
             distanceMeters: state.distanceMeters,
             durationMinutes: state.durationMins,
             durationSeconds: state.durationSeconds,
@@ -491,6 +507,8 @@ export const useJourneyStore = create<JourneyState>((set, get) => ({
       destination: null,
       distanceKm: 0,
       distanceMeters: 0,
+      depotDistanceKm: 0,
+      billableDistanceKm: 0,
       durationMins: 0,
       durationSeconds: 0,
       durationText: '',

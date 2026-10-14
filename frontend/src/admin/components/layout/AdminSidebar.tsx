@@ -6,7 +6,7 @@ import { useRef, useEffect } from 'react'
 import {
   LayoutDashboard, FileText, CalendarCheck, Users, Truck,
   DollarSign, Megaphone, Image, BarChart3, UserCog,
-  Activity, Settings, LogOut,
+  Activity, Settings, LogOut, Newspaper,
 } from 'lucide-react'
 import { useAdminStore, type AdminQuote } from '../../store/useAdminStore'
 
@@ -38,6 +38,7 @@ const fleetItems: SidebarNavItem[] = [
 
 const growthItems: SidebarNavItem[] = [
   { to: '/admin/promotions', label: 'Promotions', shortLabel: 'Promos', icon: Megaphone },
+  { to: '/admin/cms/blog', label: 'Blog CMS', shortLabel: 'Blog', icon: Newspaper },
   { to: '/admin/analytics', label: 'Analytics', shortLabel: 'Analytics', icon: BarChart3 },
 ]
 

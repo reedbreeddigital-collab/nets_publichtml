@@ -51,6 +51,12 @@ func AutoMigrate(db *gorm.DB) error {
 		&models.User{},
 		&models.PricingConfig{},
 		&models.SystemSetting{},
+		&models.BlogCategory{},
+		&models.BlogTag{},
+		&models.BlogPost{},
+		&models.BlogPostTag{},
+		&models.BlogComment{},
+		&models.NewsletterSubscriber{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed GORM auto migration: %w", err)
@@ -122,6 +128,8 @@ func SeedInitialData(db *gorm.DB) {
 		}
 		log.Println("📅 Seeded initial bookings into MySQL.")
 	}
+
+	SeedBlog(db)
 }
 
 func SeedVehicles(db *gorm.DB) {
@@ -207,4 +215,102 @@ func SeedVehicles(db *gorm.DB) {
 func mustJSON(v interface{}) string {
 	b, _ := json.Marshal(v)
 	return string(b)
+}
+
+func SeedBlog(db *gorm.DB) {
+	var catCount int64
+	db.Model(&models.BlogCategory{}).Count(&catCount)
+	if catCount == 0 {
+		cats := []models.BlogCategory{
+			{ID: "cat-interstate", Name: "Interstate Travel", Slug: "interstate-travel", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+			{ID: "cat-corporate", Name: "Corporate Mobility", Slug: "corporate-mobility", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+			{ID: "cat-fleet", Name: "Fleet Safety", Slug: "fleet-safety", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+			{ID: "cat-guides", Name: "Travel Guides", Slug: "travel-guides", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		}
+		for _, c := range cats {
+			db.Create(&c)
+		}
+		log.Println("🏷️ Seeded initial Blog Categories into MySQL.")
+	}
+
+	var tagCount int64
+	db.Model(&models.BlogTag{}).Count(&tagCount)
+	if tagCount == 0 {
+		tags := []models.BlogTag{
+			{ID: "tag-transit", Name: "Transit", Slug: "transit", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+			{ID: "tag-luxury", Name: "Luxury Travel", Slug: "luxury-travel", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+			{ID: "tag-lagos", Name: "Lagos", Slug: "lagos", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+			{ID: "tag-safety", Name: "Safety First", Slug: "safety-first", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+			{ID: "tag-executive", Name: "Executive", Slug: "executive", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		}
+		for _, t := range tags {
+			db.Create(&t)
+		}
+		log.Println("🏷️ Seeded initial Blog Tags into MySQL.")
+	}
+
+	var postCount int64
+	db.Model(&models.BlogPost{}).Count(&postCount)
+	if postCount == 0 {
+		now := time.Now()
+		img1 := "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1200&q=80"
+		img2 := "https://images.unsplash.com/photo-1570125909232-eb263c188f7e?auto=format&fit=crop&w=1200&q=80"
+		img3 := "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1200&q=80"
+		catInterstate := "cat-interstate"
+		catCorporate := "cat-corporate"
+		catFleet := "cat-fleet"
+
+		posts := []models.BlogPost{
+			{
+				ID:          "post-interstate-safe-travel",
+				Title:       "Safe Interstate Travel in Nigeria: How Modern Fleets are Redefining Road Transit",
+				Slug:        "safe-interstate-travel-in-nigeria",
+				Excerpt:     "Discover how speed limiting, scheduled maintenance, and executive chauffeur vetting are changing the standard of intercity travel across Lagos, Abuja, and Benin.",
+				Content:     "<p>Long-distance highway travel across Nigeria demands uncompromising attention to vehicle maintenance, professional route intelligence, and experienced chauffeurs. At New Era Transport Services (NETS), we believe road transit should be as smooth, reliable, and secure as executive aviation.</p><h2>The Core Pillars of Fleet Reliability</h2><p>Every commercial vehicle in our interstate fleet undergoes stringent multipoint diagnostics before departure. We evaluate tyre pressure telemetry, brake pad thickness, cooling systems, and cabin air purification to ensure journeys between hubs like Lagos, Ibadan, and Abuja proceed without hitches.</p><blockquote>Safety is not an optional feature—it is the bedrock upon which trust is built on Nigerian highways.</blockquote><p>With real-time satellite tracking and dual-driver rotations for journeys exceeding six hours, NETS passengers enjoy punctual arrivals and supreme cabin comfort.</p>",
+				CoverImage:  &img1,
+				AuthorID:    "usr-001",
+				Author:      "NETS Mobility Insights",
+				CategoryID:  &catInterstate,
+				Status:      "PUBLISHED",
+				PublishedAt: &now,
+				CreatedAt:   now.AddDate(0, 0, -5),
+				UpdatedAt:   now,
+			},
+			{
+				ID:          "post-corporate-staff-commute",
+				Title:       "Optimizing Corporate Commutes: Why Leading Enterprises Choose Dedicated Shuttles",
+				Slug:        "optimizing-corporate-commutes",
+				Excerpt:     "Employee punctuality, reduced stress, and lower carbon footprints: exploring the return on investment of dedicated corporate shuttle buses.",
+				Content:     "<p>Traffic congestion in major metropolitan centres like Lagos places enormous strain on workforce productivity and employee morale. Dedicated corporate shuttle transport bridges the gap between suburban residential hubs and city centre offices.</p><h2>Enhancing Workplace Culture from Door to Door</h2><p>Providing air-conditioned, reliable commuter buses allows team members to recharge, catch up on morning communications via onboard Wi-Fi, and arrive at the office revitalized. Organisations using our Toyota Coaster and HiAce fleets report measurable reductions in morning absenteeism.</p>",
+				CoverImage:  &img2,
+				AuthorID:    "usr-002",
+				Author:      "Corporate Logistics Desk",
+				CategoryID:  &catCorporate,
+				Status:      "PUBLISHED",
+				PublishedAt: &now,
+				CreatedAt:   now.AddDate(0, 0, -12),
+				UpdatedAt:   now,
+			},
+			{
+				ID:          "post-airport-transfers-guide",
+				Title:       "Executive Airport Transfers in Lagos: The Ultimate Smooth Landing Protocol",
+				Slug:        "executive-airport-transfers-in-lagos",
+				Excerpt:     "From flight tracking to flight-delay protection, here is what makes a private executive transfer frictionless at Murtala Muhammed International Airport.",
+				Content:     "<p>Navigating airport pickups in Ikeja requires precision timing. Our flight monitoring systems synchronize chauffeur dispatches with real-time runway touchdowns, guaranteeing zero kerbside waiting time for arriving dignitaries and business leaders.</p><h2>The Executive Fleet Advantage</h2><p>With luxury SUVs and executive minivans equipped with privacy glass, leather upholstery, and chilled refreshments, your transition from flight cabin to executive suite is instantaneous.</p>",
+				CoverImage:  &img3,
+				AuthorID:    "usr-001",
+				Author:      "NETS Concierge Team",
+				CategoryID:  &catFleet,
+				Status:      "PUBLISHED",
+				PublishedAt: &now,
+				CreatedAt:   now.AddDate(0, 0, -20),
+				UpdatedAt:   now,
+			},
+		}
+
+		for _, p := range posts {
+			db.Create(&p)
+		}
+		log.Println("📝 Seeded initial Blog Articles into MySQL.")
+	}
 }

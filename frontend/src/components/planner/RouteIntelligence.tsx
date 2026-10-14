@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useJourneyStore, LocationData } from '../../store/useJourneyStore'
 import { GOOGLE_MAPS_API_KEY, geocodeAddress } from '../../config/api'
 import { useMap, useMapsLibrary } from '@vis.gl/react-google-maps'
+import { DEFAULT_DEPOT_LAT, DEFAULT_DEPOT_LNG, fetchPricingConfig } from '../../pricing/adminPricingConfig'
 
 function getFallbackDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371
@@ -132,9 +133,41 @@ export function RouteIntelligence() {
           journeyBounds = [[sw.lng(), sw.lat()], [ne.lng(), ne.lat()]]
         }
 
+        // Calculate Repositioning Distance from Depot (Festac Town Hub) to Pickup
+        let depotDistanceKm = 0
+        try {
+          const pricingConf = await fetchPricingConfig().catch(() => null)
+          const isEnabled = pricingConf?.includeRepositioningDistance !== false
+          if (isEnabled) {
+            const depotLat = pricingConf?.depotLat ?? DEFAULT_DEPOT_LAT
+            const depotLng = pricingConf?.depotLng ?? DEFAULT_DEPOT_LNG
+            
+            const depotRequest: google.maps.DirectionsRequest = {
+              origin: { lat: depotLat, lng: depotLng },
+              destination: { lat: pLat, lng: pLng },
+              travelMode: google.maps.TravelMode.DRIVING,
+            }
+            const depotResult = await directionsService.route(depotRequest).catch(() => null)
+            if (depotResult?.routes?.[0]?.legs?.[0]?.distance?.value) {
+              depotDistanceKm = Math.round((depotResult.routes[0].legs[0].distance.value / 1000) * 10) / 10
+            } else {
+              const straightKm = getFallbackDistanceKm(depotLat, depotLng, pLat, pLng)
+              depotDistanceKm = Math.round(straightKm * 1.3 * 10) / 10
+            }
+          }
+        } catch (e) {
+          console.warn('Depot distance calculation fallback:', e)
+          const straightKm = getFallbackDistanceKm(DEFAULT_DEPOT_LAT, DEFAULT_DEPOT_LNG, pLat, pLng)
+          depotDistanceKm = Math.round(straightKm * 1.3 * 10) / 10
+        }
+
+        const billableDistanceKm = Math.round((distanceKm + depotDistanceKm) * 10) / 10
+
         setRouteCalculations({
           distanceKm,
           distanceMeters: totalDistanceMeters,
+          depotDistanceKm,
+          billableDistanceKm,
           durationMins,
           durationSeconds: totalDurationSeconds,
           durationText: `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`,
@@ -167,9 +200,18 @@ export function RouteIntelligence() {
         if (totalKm > 100) insights.push('Long Distance Journey')
         if (totalKm <= 50) insights.push('Urban Journey')
 
+        let fallbackDepotDistanceKm = 0
+        if (pickup && pickup.lat && pickup.lng) {
+          const straightKm = getFallbackDistanceKm(DEFAULT_DEPOT_LAT, DEFAULT_DEPOT_LNG, pickup.lat, pickup.lng)
+          fallbackDepotDistanceKm = Math.round(straightKm * 1.3 * 10) / 10
+        }
+        const fallbackBillableDistanceKm = Math.round((totalKm + fallbackDepotDistanceKm) * 10) / 10
+
         setRouteCalculations({
           distanceKm: totalKm,
           distanceMeters: totalKm * 1000,
+          depotDistanceKm: fallbackDepotDistanceKm,
+          billableDistanceKm: fallbackBillableDistanceKm,
           durationMins: totalMins,
           durationSeconds: totalMins * 60,
           durationText: `${Math.floor(totalMins / 60)}h ${totalMins % 60}m`,

@@ -17,6 +17,78 @@ import (
 	"nets-logistics-backend/internal/response"
 )
 
+// OpenDealBondLookbackDays defines the maximum number of days an unclosed/ongoing deal
+// retains affinity to its assigned sales closer. After this window, stale deals expire
+// and subsequent requests from the customer enter round-robin rotation.
+const OpenDealBondLookbackDays = 60
+
+// IsLeadClosed checks if a lead represents a closed/finalized/won deal.
+func IsLeadClosed(l *models.Lead) bool {
+	if l == nil {
+		return false
+	}
+	if l.ClosedAt != nil {
+		return true
+	}
+	st := strings.ToLower(strings.TrimSpace(l.Status))
+	crm := strings.ToLower(strings.TrimSpace(l.CrmStatus))
+	return crm == "won & paid" || crm == "won" || crm == "converted" || crm == "paid & confirmed" || crm == "paid" ||
+		st == "converted" || st == "won" || st == "paid" || st == "paid & confirmed"
+}
+
+// FindActiveDealCloser checks if a customer has an ongoing/open deal with an active sales closer.
+// If the customer returns after days or weeks to close an open deal, they stay assigned to the same closer.
+// Once a deal is won/closed (or expires past the lookback window), the bond is broken, and subsequent
+// deals from the customer are rotated to the next sales closer via round-robin.
+func FindActiveDealCloser(db *gorm.DB, customerEmail, customerPhone string) string {
+	if db == nil {
+		return ""
+	}
+
+	cleanEmail := strings.TrimSpace(strings.ToLower(customerEmail))
+	cleanPhone := strings.TrimSpace(customerPhone)
+
+	hasEmail := cleanEmail != "" && strings.Contains(cleanEmail, "@")
+	hasPhone := len(cleanPhone) >= 7 && cleanPhone != "0000000" && !strings.EqualFold(cleanPhone, "n/a")
+
+	if !hasEmail && !hasPhone {
+		return ""
+	}
+
+	query := db.Model(&models.Lead{}).Where("assigned_to != '' AND assigned_to IS NOT NULL")
+	if hasEmail && hasPhone {
+		query = query.Where("LOWER(customer_email) = ? OR customer_phone = ?", cleanEmail, cleanPhone)
+	} else if hasEmail {
+		query = query.Where("LOWER(customer_email) = ?", cleanEmail)
+	} else {
+		query = query.Where("customer_phone = ?", cleanPhone)
+	}
+
+	var lastLead models.Lead
+	if err := query.Order("created_at DESC").First(&lastLead).Error; err != nil {
+		return ""
+	}
+
+	// 1. Bond broken: if the sales closer already closed/won the deal with the customer
+	if IsLeadClosed(&lastLead) {
+		return ""
+	}
+
+	// 2. Open deal bond lookback window (default 60 days) to prevent stale/abandoned leads from locking forever
+	lookbackCutoff := time.Now().AddDate(0, 0, -OpenDealBondLookbackDays)
+	if lastLead.CreatedAt.Before(lookbackCutoff) {
+		return ""
+	}
+
+	// 3. Verify the assigned sales closer is still active
+	var closer models.User
+	if err := db.Where("id = ? AND status = ?", lastLead.AssignedTo, "active").First(&closer).Error; err != nil {
+		return ""
+	}
+
+	return lastLead.AssignedTo
+}
+
 // GetNextRoundRobinCloser selects the active sales closer who was assigned a lead least recently,
 // guaranteeing a 100% fair and balanced rotation across all sales closers without streaks.
 func GetNextRoundRobinCloser(db *gorm.DB) (string, error) {
@@ -209,20 +281,11 @@ func (h *LeadHandler) Store(w http.ResponseWriter, r *http.Request) {
 
 	db := database.DB
 	if db != nil {
-		assignedTo := ""
-		if customerEmail != "" {
-			var existing models.Lead
-			// Check if same customer requested a quote today and verify closer is active
-			err := db.Where("customer_email = ? AND DATE(created_at) = CURDATE() AND assigned_to != ''", customerEmail).
-				Order("created_at DESC").First(&existing).Error
-			if err == nil && existing.AssignedTo != "" {
-				var u models.User
-				if db.Where("id = ? AND status = ?", existing.AssignedTo, "active").First(&u).Error == nil {
-					assignedTo = existing.AssignedTo
-				}
-			}
-		}
-
+		// Deal-Cycle Sticky Routing:
+		// Check if customer has an ongoing/open deal with an active closer.
+		// If the deal was already closed/won (or expired past lookback window), the bond is broken
+		// and the lead rotates fairly to the next sales closer via round-robin.
+		assignedTo := FindActiveDealCloser(db, customerEmail, customerPhone)
 		if assignedTo != "" {
 			lead.AssignedTo = assignedTo
 		} else {
@@ -274,6 +337,10 @@ func (h *LeadHandler) Store(w http.ResponseWriter, r *http.Request) {
 			}
 			existingRef.PayloadJSON = string(payloadBytes)
 
+			if existingRef.AssignedTo == "" && lead.AssignedTo != "" {
+				existingRef.AssignedTo = lead.AssignedTo
+			}
+
 			if existingRef.Status == "paid" || existingRef.Status == "converted" || existingRef.CrmStatus == "Won & Paid" {
 				now := time.Now()
 				existingRef.ClosedAt = &now
@@ -290,6 +357,18 @@ func (h *LeadHandler) Store(w http.ResponseWriter, r *http.Request) {
 			if err := db.Create(&lead).Error; err != nil {
 				response.Error(w, http.StatusInternalServerError, fmt.Sprintf("Failed to store lead in DB: %v", err))
 				return
+			}
+
+			// Trigger notification if assigned
+			if lead.AssignedTo != "" {
+				var user models.User
+				if err := db.Where("id = ?", lead.AssignedTo).First(&user).Error; err == nil && user.Email != "" {
+					fmt.Printf("=================================================================\n")
+					fmt.Printf("[EMAIL NOTIFICATION] To: %s (%s)\n", user.FullName, user.Email)
+					fmt.Printf("Subject: New Lead Assigned: %s\n", lead.LeadReference)
+					fmt.Printf("Body: Hello %s,\n\nYou have been assigned a new lead (%s) from %s.\nLog in to your dashboard to review it.\n", user.FullName, lead.LeadReference, lead.CustomerName)
+					fmt.Printf("=================================================================\n")
+				}
 			}
 		}
 
@@ -514,7 +593,9 @@ func (h *LeadHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if body.AssignedTo != nil {
 		targetCloser := *body.AssignedTo
 		if targetCloser == "auto" || targetCloser == "round-robin" {
-			if nextCloser, err := GetNextRoundRobinCloser(db); err == nil && nextCloser != "" {
+			if bondedCloser := FindActiveDealCloser(db, lead.CustomerEmail, lead.CustomerPhone); bondedCloser != "" {
+				targetCloser = bondedCloser
+			} else if nextCloser, err := GetNextRoundRobinCloser(db); err == nil && nextCloser != "" {
 				targetCloser = nextCloser
 			}
 		}
@@ -724,8 +805,14 @@ func (h *LeadHandler) AutoAssignUnassigned(w http.ResponseWriter, r *http.Reques
 
 	assignedCount := 0
 	for _, l := range unassignedLeads {
-		if closerID, err := GetNextRoundRobinCloser(db); err == nil && closerID != "" {
-			db.Model(&l).Update("assigned_to", closerID)
+		targetCloser := FindActiveDealCloser(db, l.CustomerEmail, l.CustomerPhone)
+		if targetCloser == "" {
+			if closerID, err := GetNextRoundRobinCloser(db); err == nil && closerID != "" {
+				targetCloser = closerID
+			}
+		}
+		if targetCloser != "" {
+			db.Model(&l).Update("assigned_to", targetCloser)
 			assignedCount++
 		}
 	}

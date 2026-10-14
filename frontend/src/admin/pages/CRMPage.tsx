@@ -613,6 +613,16 @@ export function CRMPage() {
           selectedLead.payload?.distanceKm ||
           0
         )
+        const depotDistanceKm = Number(
+          selectedLead.payload?.journeyInformation?.depotDistanceKm ||
+          selectedLead.payload?.estimatedInvestment?.depotDistanceKm ||
+          0
+        )
+        const billableDistanceKm = Number(
+          selectedLead.payload?.journeyInformation?.billableDistanceKm ||
+          selectedLead.payload?.estimatedInvestment?.billableDistanceKm ||
+          0
+        )
         const retentionPreference = 
           selectedLead.payload?.journeyInformation?.retentionPreference ||
           selectedLead.payload?.retentionPreference ||
@@ -915,9 +925,21 @@ export function CRMPage() {
                     <span>Cost Breakdown & Vehicle Retention Details</span>
                   </div>
                   {distanceKm > 0 && (
-                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--adm-text-1)', background: 'rgba(10, 48, 65, 0.08)', padding: '2px 8px', borderRadius: 4 }}>
-                      Route Distance: <strong>{Math.round(distanceKm)} km</strong>
-                    </span>
+                    <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--adm-text-1)', background: 'rgba(10, 48, 65, 0.08)', padding: '2px 8px', borderRadius: 4 }}>
+                        Route: <strong>{Math.round(distanceKm)} km</strong>
+                      </span>
+                      {depotDistanceKm > 0 && (
+                        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--adm-accent)', background: 'rgba(192, 39, 45, 0.08)', padding: '2px 8px', borderRadius: 4 }} title="Distance from Festac Town Depot to Pickup Point">
+                          Depot Repositioning: <strong>{Math.round(depotDistanceKm)} km</strong>
+                        </span>
+                      )}
+                      {billableDistanceKm > 0 && billableDistanceKm !== distanceKm && (
+                        <span style={{ fontSize: 11, fontWeight: 600, color: '#15803d', background: 'rgba(22, 163, 74, 0.08)', padding: '2px 8px', borderRadius: 4 }} title="Total distance factored into operations and fuel pricing">
+                          Billable Total: <strong>{Math.round(billableDistanceKm)} km</strong>
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
 

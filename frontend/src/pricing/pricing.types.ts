@@ -183,6 +183,9 @@ export interface JourneyPricingInput {
   vehicleId: string
   distanceKm: number
   distanceMeters: number
+  routeDistanceKm?: number
+  depotDistanceKm?: number
+  billableDistanceKm?: number
   durationMinutes: number
   durationSeconds: number
   tripType: TripType
@@ -216,6 +219,9 @@ export interface EstimatedInvestment {
   retentionDays?: number
   retentionRate?: number
   distanceKm?: number
+  routeDistanceKm?: number
+  depotDistanceKm?: number
+  billableDistanceKm?: number
   chargeableDays?: number
   /** Which rate tier was used */
   rateTier: 'daily' | 'three-day' | 'monthly'
@@ -255,6 +261,9 @@ export interface CRMQuotationPayload {
     pickup: string
     destination: string
     distanceKm: number
+    routeDistanceKm?: number
+    depotDistanceKm?: number
+    billableDistanceKm?: number
     durationMinutes: number
     tripType: string
     passengerCount: number

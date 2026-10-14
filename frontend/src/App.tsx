@@ -21,6 +21,8 @@ import { PrivacyPolicyPage } from './pages/legal/PrivacyPolicyPage'
 import { TermsOfServicePage } from './pages/legal/TermsOfServicePage'
 import { CookiePolicyPage } from './pages/legal/CookiePolicyPage'
 import { QuotePaymentPage } from './pages/QuotePaymentPage'
+import { BlogListPage } from './pages/blog/BlogListPage'
+import { BlogPostPage } from './pages/blog/BlogPostPage'
 
 import { LeadCaptureModal } from './components/sections/LeadCaptureModal'
 import { InternationalModal } from './components/sections/InternationalModal'
@@ -125,6 +127,10 @@ function AppContent() {
           <Route path="/pay/:quoteRef" element={<QuotePaymentPage />} />
           <Route path="/quotes/pay/:quoteRef" element={<QuotePaymentPage />} />
           <Route path="/quote/:quoteRef/pay" element={<QuotePaymentPage />} />
+
+          {/* Public Blog & Insights */}
+          <Route path="/blog" element={<BlogListPage />} />
+          <Route path="/blog/:slug" element={<BlogPostPage />} />
         </Routes>
       </main>
 

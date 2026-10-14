@@ -24,6 +24,7 @@ const footerSections = [
     title: 'Company',
     links: [
       { label: 'About NETS',                 href: '#' },
+      { label: 'Blog & Insights',            href: '/blog', isRoute: true },
       { label: 'Industries We Serve',        href: '#' },
       { label: 'Careers',                    href: '#' },
       { label: 'Contact Sales',              href: '#' },

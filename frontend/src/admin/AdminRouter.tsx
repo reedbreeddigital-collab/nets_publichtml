@@ -18,6 +18,8 @@ import { UsersPage } from './pages/UsersPage'
 import { ActivityLogPage } from './pages/ActivityLogPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { ProfilePage } from './pages/ProfilePage'
+import { AdminBlogCMSPage } from './pages/blog/AdminBlogCMSPage'
+import { AdminBlogCreatePage } from './pages/blog/AdminBlogCreatePage'
 
 export function AdminRouter() {
   return (
@@ -34,6 +36,9 @@ export function AdminRouter() {
         <Route path="media" element={<MediaPage />} />
         <Route path="promotions" element={<PromotionsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
+        <Route path="cms/blog" element={<AdminBlogCMSPage />} />
+        <Route path="cms/blog/create" element={<AdminBlogCreatePage />} />
+        <Route path="blog" element={<Navigate to="/admin/cms/blog" replace />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="activity" element={<ActivityLogPage />} />
         <Route path="settings" element={<SettingsPage />} />

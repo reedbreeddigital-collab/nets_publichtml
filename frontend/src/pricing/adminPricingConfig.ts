@@ -1,8 +1,17 @@
 import { API_URL } from '../config/api'
 
+export const DEFAULT_DEPOT_ADDRESS = 'Skillup Academy, House 32 2nd Ave, Festac Town, Lagos 102102, Lagos'
+export const DEFAULT_DEPOT_LAT = 6.4624661
+export const DEFAULT_DEPOT_LNG = 3.2808787
+
 export interface PricingConfig {
   fuelPricePerLitre: number;
   billOneWayAsReturn: boolean;
+  includeRepositioningDistance?: boolean;
+  depotAddress?: string;
+  depotLat?: number;
+  depotLng?: number;
+  repositioningMultiplier?: number;
   coasterFuelRatio: number;
   hiaceFuelRatio: number;
   saloonFuelRatio: number;
@@ -54,10 +63,17 @@ export async function fetchPricingConfig(): Promise<PricingConfig> {
     throw new Error("Pricing configuration is missing from the database. Please configure pricing in the admin dashboard.");
   }
   
-  const cleanConfig = { ...remoteConfig };
-  delete cleanConfig.data;
+  const cleanConfig: PricingConfig = {
+    includeRepositioningDistance: true,
+    depotAddress: DEFAULT_DEPOT_ADDRESS,
+    depotLat: DEFAULT_DEPOT_LAT,
+    depotLng: DEFAULT_DEPOT_LNG,
+    repositioningMultiplier: 2,
+    ...remoteConfig,
+  };
+  delete (cleanConfig as any).data;
   
-  return cleanConfig as PricingConfig;
+  return cleanConfig;
 }
 
 export async function savePricingConfig(newConfig: PricingConfig): Promise<{ success: boolean; error?: string }> {

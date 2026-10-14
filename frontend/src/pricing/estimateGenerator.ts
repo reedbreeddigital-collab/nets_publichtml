@@ -52,13 +52,20 @@ export function calculatePricingFromConfig(
     retentionMoving = adminConfig.saloonRetentionMoving
   }
 
+  const routeDistance = input.routeDistanceKm ?? input.distanceKm ?? 0
+  const isRepositioningEnabled = adminConfig.includeRepositioningDistance !== false
+  const depotDistance = isRepositioningEnabled ? (input.depotDistanceKm ?? 0) : 0
+  const effectiveOneWayKm = routeDistance + depotDistance
+
   let tripsPerDay = 1
   if ((input.tripType === 'To & Fro' || input.tripType === 'Return') && (input.numberOfDays === 1 || !input.numberOfDays)) {
     tripsPerDay = 2
-  } else if ((input.tripType === 'Drop-Off' || input.tripType === 'One-Way' || input.tripType === 'One Way') && adminConfig.billOneWayAsReturn) {
-    tripsPerDay = 2
+  } else if ((input.tripType === 'Drop-Off' || input.tripType === 'One-Way' || input.tripType === 'One Way') && (adminConfig.billOneWayAsReturn || isRepositioningEnabled)) {
+    tripsPerDay = adminConfig.repositioningMultiplier || 2
+  } else if (isRepositioningEnabled && tripsPerDay === 1) {
+    tripsPerDay = adminConfig.repositioningMultiplier || 2
   }
-  const dailyFuelCost = input.distanceKm * tripsPerDay * fuelRatio * adminConfig.fuelPricePerLitre
+  const dailyFuelCost = effectiveOneWayKm * tripsPerDay * fuelRatio * adminConfig.fuelPricePerLitre
   
   const isOutstation = input.tripType === 'Multi-Day' || input.tripType === 'Recurring' || (input.numberOfDays !== undefined && input.numberOfDays > 1)
   const dailyOutstation = isOutstation ? outstation : 0
@@ -95,7 +102,10 @@ export function calculatePricingFromConfig(
     retentionFee: additionalRetentionFee,
     retentionDays,
     retentionRate: feePerDay,
-    distanceKm: input.distanceKm,
+    distanceKm: routeDistance,
+    routeDistanceKm: routeDistance,
+    depotDistanceKm: depotDistance,
+    billableDistanceKm: effectiveOneWayKm * (tripsPerDay > 1 ? tripsPerDay : 1),
     chargeableDays,
     rateTier: (input.tripType === 'Recurring' || input.tripType === 'Staff Pickup') ? 'monthly' : input.tripType === 'Multi-Day' ? 'three-day' : 'daily',
     vehicleId: input.vehicleId,

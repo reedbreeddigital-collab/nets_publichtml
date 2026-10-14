@@ -7,6 +7,7 @@ const desktopNavLinks = [
   { label: 'Book Shuttle', href: '/shuttles',  isHash: false },
   { label: 'Services',     href: '/#services', isHash: true },
   { label: 'Fleet',        href: '/fleet',     isHash: false },
+  { label: 'Blog',         href: '/blog',      isHash: false },
   { label: 'About',        href: '/#about',    isHash: true },
   { label: 'Contact',      href: '/#contact',  isHash: true },
 ]
@@ -15,6 +16,7 @@ const mobileNavLinks = [
   { label: 'Book Shuttle',      href: '/shuttles',  isHash: false },
   { label: 'Services',          href: '/#services', isHash: true },
   { label: 'Fleet',             href: '/fleet',     isHash: false },
+  { label: 'Blog',              href: '/blog',      isHash: false },
   { label: 'About Us',          href: '/#about',    isHash: true },
   { label: 'Contact',           href: '/#contact',  isHash: true },
   { label: 'Plan Your Journey', href: '/plan',      isHash: false },
