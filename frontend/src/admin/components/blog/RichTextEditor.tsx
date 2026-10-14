@@ -8,12 +8,14 @@ import {
   Quote, Undo, Redo, Heading1, Heading2, Link as LinkIcon, Image as ImageIcon
 } from 'lucide-react'
 
+import { CloudinaryMediaModal } from './CloudinaryMediaModal'
+
 interface RichTextEditorProps {
   content: string
   onChange: (html: string) => void
 }
 
-const MenuBar = ({ editor }: { editor: any }) => {
+const MenuBar = ({ editor, onOpenMediaModal }: { editor: any; onOpenMediaModal: () => void }) => {
   if (!editor) return null
 
   const toggleLink = () => {
@@ -27,13 +29,6 @@ const MenuBar = ({ editor }: { editor: any }) => {
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
   }
 
-  const addImage = () => {
-    const url = window.prompt('Enter Image URL (e.g. Unsplash or Cloudinary):')
-    if (url) {
-      editor.chain().focus().setImage({ src: url }).run()
-    }
-  }
-
   const buttons = [
     { icon: Bold, action: () => editor.chain().focus().toggleBold().run(), isActive: editor.isActive('bold'), label: 'Bold' },
     { icon: Italic, action: () => editor.chain().focus().toggleItalic().run(), isActive: editor.isActive('italic'), label: 'Italic' },
@@ -45,7 +40,7 @@ const MenuBar = ({ editor }: { editor: any }) => {
     { icon: ListOrdered, action: () => editor.chain().focus().toggleOrderedList().run(), isActive: editor.isActive('orderedList'), label: 'Numbered List' },
     { icon: Quote, action: () => editor.chain().focus().toggleBlockquote().run(), isActive: editor.isActive('blockquote'), label: 'Quote' },
     { icon: LinkIcon, action: toggleLink, isActive: editor.isActive('link'), label: 'Link' },
-    { icon: ImageIcon, action: addImage, isActive: false, label: 'Image' },
+    { icon: ImageIcon, action: onOpenMediaModal, isActive: false, label: 'Upload or Select Image (Cloudinary)' },
     { icon: Undo, action: () => editor.chain().focus().undo().run(), isActive: false, label: 'Undo' },
     { icon: Redo, action: () => editor.chain().focus().redo().run(), isActive: false, label: 'Redo' },
   ]
@@ -100,6 +95,8 @@ const MenuBar = ({ editor }: { editor: any }) => {
 }
 
 export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
+  const [isMediaModalOpen, setIsMediaModalOpen] = React.useState(false)
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -129,22 +126,35 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
   }, [content, editor])
 
   return (
-    <div style={{
-      border: '1px solid #E2E8F0',
-      borderRadius: '8px',
-      background: '#FFFFFF',
-      minHeight: '340px',
-      display: 'flex',
-      flexDirection: 'column',
-    }}>
-      <MenuBar editor={editor} />
-      <div style={{ flex: 1, padding: '16px', outline: 'none' }}>
-        <EditorContent
-          editor={editor}
-          style={{ minHeight: '280px', outline: 'none' }}
-          className="prose-editor"
-        />
+    <>
+      <div style={{
+        border: '1px solid #E2E8F0',
+        borderRadius: '8px',
+        background: '#FFFFFF',
+        minHeight: '340px',
+        display: 'flex',
+        flexDirection: 'column',
+      }}>
+        <MenuBar editor={editor} onOpenMediaModal={() => setIsMediaModalOpen(true)} />
+        <div style={{ flex: 1, padding: '16px', outline: 'none' }}>
+          <EditorContent
+            editor={editor}
+            style={{ minHeight: '280px', outline: 'none' }}
+            className="prose-editor"
+          />
+        </div>
       </div>
-    </div>
+
+      <CloudinaryMediaModal
+        isOpen={isMediaModalOpen}
+        onClose={() => setIsMediaModalOpen(false)}
+        onSelectImage={(url) => {
+          if (editor && url) {
+            editor.chain().focus().setImage({ src: url }).run()
+          }
+        }}
+        title="Insert Image into Article (Cloudinary)"
+      />
+    </>
   )
 }

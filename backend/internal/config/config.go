@@ -19,6 +19,10 @@ type Config struct {
 	DBPassword         string
 	DBDSN              string
 	DBSource           string
+	CloudinaryURL      string
+	CloudinaryCloud    string
+	CloudinaryKey      string
+	CloudinarySecret   string
 }
 
 func LoadConfig() *Config {
@@ -29,6 +33,9 @@ func LoadConfig() *Config {
 	if !strings.HasPrefix(port, ":") && port != "" {
 		port = ":" + port
 	}
+
+	cloudinaryURL := getEnv("CLOUDINARY_URL", "cloudinary://768523141117821:KeVQI7I7tuGlCxUIdWC9M6RdWjg@wnmabxiy")
+	cloud, key, secret := parseCloudinaryURL(cloudinaryURL)
 
 	return &Config{
 		Port:               port,
@@ -43,7 +50,27 @@ func LoadConfig() *Config {
 		DBPassword:         getEnv("DB_PASSWORD", "*Reedb4b4"),
 		DBDSN:              getEnv("DB_DSN", ""),
 		DBSource:           getEnv("DB_SOURCE", "./storage/database.db"),
+		CloudinaryURL:      cloudinaryURL,
+		CloudinaryCloud:    cloud,
+		CloudinaryKey:      key,
+		CloudinarySecret:   secret,
 	}
+}
+
+func parseCloudinaryURL(rawURL string) (cloud, key, secret string) {
+	if strings.HasPrefix(rawURL, "cloudinary://") {
+		trimmed := strings.TrimPrefix(rawURL, "cloudinary://")
+		atParts := strings.Split(trimmed, "@")
+		if len(atParts) == 2 {
+			cloud = atParts[1]
+			credParts := strings.Split(atParts[0], ":")
+			if len(credParts) == 2 {
+				key = credParts[0]
+				secret = credParts[1]
+			}
+		}
+	}
+	return
 }
 
 func (c *Config) GetFormattedDSN() string {

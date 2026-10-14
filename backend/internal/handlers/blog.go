@@ -1,22 +1,31 @@
 package handlers
 
 import (
+	"bytes"
 	"crypto/rand"
+	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
+	"nets-logistics-backend/internal/config"
 	"nets-logistics-backend/internal/database"
 	"nets-logistics-backend/internal/models"
 	"nets-logistics-backend/internal/response"
 )
 
-type BlogHandler struct{}
+type BlogHandler struct {
+	cfg *config.Config
+}
 
-func NewBlogHandler() *BlogHandler {
-	return &BlogHandler{}
+func NewBlogHandler(cfg *config.Config) *BlogHandler {
+	return &BlogHandler{cfg: cfg}
 }
 
 func generateID(prefix string) string {
@@ -549,4 +558,226 @@ func syncTags(postID string, tagsStr string) {
 		}
 		database.DB.Exec("INSERT INTO blog_post_tags (post_id, tag_id) VALUES (?, ?)", postID, tag.ID)
 	}
+}
+
+// ----------------------------------------------------------------------------
+// CLOUDINARY MEDIA
+// ----------------------------------------------------------------------------
+
+func (h *BlogHandler) signCloudinary(toSign string) string {
+	hsh := sha1.New()
+	hsh.Write([]byte(toSign))
+	return hex.EncodeToString(hsh.Sum(nil))
+}
+
+func (h *BlogHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
+	if h.cfg == nil || h.cfg.CloudinaryCloud == "" {
+		response.Error(w, http.StatusInternalServerError, "Cloudinary configuration missing")
+		return
+	}
+
+	cloudName := h.cfg.CloudinaryCloud
+	apiKey := h.cfg.CloudinaryKey
+	apiSecret := h.cfg.CloudinarySecret
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	folder := "nets_blog"
+
+	// Sign: folder=nets_blog&timestamp=<ts><apiSecret>
+	signature := h.signCloudinary(fmt.Sprintf("folder=%s&timestamp=%s%s", folder, timestamp, apiSecret))
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	_ = writer.WriteField("api_key", apiKey)
+	_ = writer.WriteField("timestamp", timestamp)
+	_ = writer.WriteField("folder", folder)
+	_ = writer.WriteField("signature", signature)
+
+	contentType := r.Header.Get("Content-Type")
+	if strings.Contains(contentType, "multipart/form-data") {
+		err := r.ParseMultipartForm(32 << 20)
+		if err != nil {
+			response.Error(w, http.StatusBadRequest, "Failed to parse form: "+err.Error())
+			return
+		}
+		file, header, err := r.FormFile("file")
+		if err != nil {
+			file, header, err = r.FormFile("image")
+		}
+		if err != nil {
+			response.Error(w, http.StatusBadRequest, "No file found in request under 'file' or 'image'")
+			return
+		}
+		defer file.Close()
+
+		part, err := writer.CreateFormFile("file", header.Filename)
+		if err != nil {
+			response.Error(w, http.StatusInternalServerError, "Failed to create form file: "+err.Error())
+			return
+		}
+		if _, err = io.Copy(part, file); err != nil {
+			response.Error(w, http.StatusInternalServerError, "Failed to copy file data: "+err.Error())
+			return
+		}
+	} else {
+		var jsonBody struct {
+			File string `json:"file"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&jsonBody); err != nil || jsonBody.File == "" {
+			response.Error(w, http.StatusBadRequest, "Expected multipart/form-data with 'file' or JSON with 'file' string")
+			return
+		}
+		_ = writer.WriteField("file", jsonBody.File)
+	}
+
+	if err := writer.Close(); err != nil {
+		response.Error(w, http.StatusInternalServerError, "Failed to finalize multipart writer: "+err.Error())
+		return
+	}
+
+	uploadURL := fmt.Sprintf("https://api.cloudinary.com/v1_1/%s/image/upload", cloudName)
+	req, err := http.NewRequest(http.MethodPost, uploadURL, body)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "Failed to create upload request: "+err.Error())
+		return
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	client := &http.Client{Timeout: 45 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		response.Error(w, http.StatusBadGateway, "Failed to upload to Cloudinary: "+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		response.Error(w, resp.StatusCode, "Cloudinary error: "+string(respBody))
+		return
+	}
+
+	var cldResult map[string]interface{}
+	if err := json.Unmarshal(respBody, &cldResult); err != nil {
+		response.Error(w, http.StatusInternalServerError, "Failed to parse Cloudinary response")
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"data": map[string]interface{}{
+			"url":        cldResult["secure_url"],
+			"secure_url": cldResult["secure_url"],
+			"public_id":  cldResult["public_id"],
+			"format":     cldResult["format"],
+			"width":      cldResult["width"],
+			"height":     cldResult["height"],
+			"bytes":      cldResult["bytes"],
+			"created_at": cldResult["created_at"],
+		},
+	})
+}
+
+func (h *BlogHandler) GetImages(w http.ResponseWriter, r *http.Request) {
+	if h.cfg == nil || h.cfg.CloudinaryCloud == "" {
+		response.Error(w, http.StatusInternalServerError, "Cloudinary configuration missing")
+		return
+	}
+
+	cloudName := h.cfg.CloudinaryCloud
+	apiKey := h.cfg.CloudinaryKey
+	apiSecret := h.cfg.CloudinarySecret
+
+	adminURL := fmt.Sprintf("https://api.cloudinary.com/v1_1/%s/resources/image?max_results=60", cloudName)
+	req, err := http.NewRequest(http.MethodGet, adminURL, nil)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "Failed to create request: "+err.Error())
+		return
+	}
+	req.SetBasicAuth(apiKey, apiSecret)
+
+	client := &http.Client{Timeout: 20 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		response.Error(w, http.StatusBadGateway, "Failed to fetch images from Cloudinary: "+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		response.Error(w, resp.StatusCode, "Cloudinary error: "+string(respBody))
+		return
+	}
+
+	var cldResult struct {
+		Resources []map[string]interface{} `json:"resources"`
+	}
+	if err := json.Unmarshal(respBody, &cldResult); err != nil {
+		response.Error(w, http.StatusInternalServerError, "Failed to parse Cloudinary response")
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]interface{}{
+		"success":   true,
+		"resources": cldResult.Resources,
+	})
+}
+
+func (h *BlogHandler) DeleteImage(w http.ResponseWriter, r *http.Request) {
+	if h.cfg == nil || h.cfg.CloudinaryCloud == "" {
+		response.Error(w, http.StatusInternalServerError, "Cloudinary configuration missing")
+		return
+	}
+
+	publicID := r.URL.Query().Get("public_id")
+	if publicID == "" {
+		var reqBody struct {
+			PublicID string `json:"public_id"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&reqBody)
+		publicID = reqBody.PublicID
+	}
+
+	if publicID == "" {
+		response.Error(w, http.StatusBadRequest, "public_id is required")
+		return
+	}
+
+	cloudName := h.cfg.CloudinaryCloud
+	apiKey := h.cfg.CloudinaryKey
+	apiSecret := h.cfg.CloudinarySecret
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+
+	signature := h.signCloudinary(fmt.Sprintf("public_id=%s&timestamp=%s%s", publicID, timestamp, apiSecret))
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	_ = writer.WriteField("public_id", publicID)
+	_ = writer.WriteField("api_key", apiKey)
+	_ = writer.WriteField("timestamp", timestamp)
+	_ = writer.WriteField("signature", signature)
+	_ = writer.Close()
+
+	destroyURL := fmt.Sprintf("https://api.cloudinary.com/v1_1/%s/image/destroy", cloudName)
+	req, err := http.NewRequest(http.MethodPost, destroyURL, body)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "Failed to create destroy request: "+err.Error())
+		return
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		response.Error(w, http.StatusBadGateway, "Failed to contact Cloudinary: "+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	response.JSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "Image deleted successfully",
+		"raw":     string(respBody),
+	})
 }

@@ -26,6 +26,22 @@ export const EMAIL_PROXY_KEY =
   import.meta.env.VITE_EMAIL_PROXY_KEY || 
   'ep_live_6f3b92d8a4c1e7f50b4a1d9c2e8f7a3b'
 
+export const CLOUDINARY_CLOUD_NAME = 
+  import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 
+  'wnmabxiy'
+
+export const CLOUDINARY_API_KEY = 
+  import.meta.env.VITE_CLOUDINARY_API_KEY || 
+  '768523141117821'
+
+export const CLOUDINARY_API_SECRET = 
+  import.meta.env.VITE_CLOUDINARY_API_SECRET || 
+  'KeVQI7I7tuGlCxUIdWC9M6RdWjg'
+
+export const CLOUDINARY_URL = 
+  import.meta.env.VITE_CLOUDINARY_URL || 
+  'cloudinary://768523141117821:KeVQI7I7tuGlCxUIdWC9M6RdWjg@wnmabxiy'
+
 export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number, country?: string } | null> {
   try {
     const query = encodeURIComponent(address)

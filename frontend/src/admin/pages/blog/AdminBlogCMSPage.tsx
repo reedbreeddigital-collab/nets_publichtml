@@ -2,16 +2,19 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   FileText, CheckCircle2, File, Plus, Tag, MessageSquare, Folder, Users,
-  Search, Trash2, Edit3, ExternalLink
+  Search, Trash2, Edit3, ExternalLink, Image as ImageIcon, Copy, UploadCloud, RefreshCw
 } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
 import { blogService } from '../../../services/blogService'
+import { cloudinaryService, CloudinaryResource } from '../../../services/cloudinaryService'
+import { CloudinaryMediaModal } from '../../components/blog/CloudinaryMediaModal'
 import { BlogPost, BlogCategory, BlogTag, BlogComment, NewsletterSubscriber } from '../../../types/blog'
 
 const TABS = [
   { id: 'posts', name: 'Posts', icon: FileText },
   { id: 'categories', name: 'Categories', icon: Folder },
   { id: 'tags', name: 'Tags', icon: Tag },
+  { id: 'media', name: 'Media (Cloudinary)', icon: ImageIcon },
   { id: 'comments', name: 'Comments', icon: MessageSquare },
   { id: 'subscribers', name: 'Subscribers', icon: Users },
 ]
@@ -23,24 +26,28 @@ export function AdminBlogCMSPage() {
   const [tagsList, setTagsList] = useState<BlogTag[]>([])
   const [comments, setComments] = useState<BlogComment[]>([])
   const [subscribers, setSubscribers] = useState<NewsletterSubscriber[]>([])
+  const [mediaList, setMediaList] = useState<CloudinaryResource[]>([])
+  const [isMediaModalOpen, setIsMediaModalOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
   const loadData = async () => {
     setLoading(true)
     try {
-      const [fetchedPosts, fetchedCats, fetchedTags, fetchedComms, fetchedSubs] = await Promise.all([
+      const [fetchedPosts, fetchedCats, fetchedTags, fetchedComms, fetchedSubs, fetchedMedia] = await Promise.all([
         blogService.getPosts(),
         blogService.getCategories(),
         blogService.getTags(),
         blogService.getComments(),
         blogService.getSubscribers(),
+        cloudinaryService.getImages(),
       ])
       setPosts(fetchedPosts)
       setCategories(fetchedCats)
       setTagsList(fetchedTags)
       setComments(fetchedComms)
       setSubscribers(fetchedSubs)
+      setMediaList(fetchedMedia)
     } catch (err) {
       console.error('Error loading blog CMS data:', err)
       toast.error('Failed to load blog data')
@@ -52,6 +59,23 @@ export function AdminBlogCMSPage() {
   useEffect(() => {
     loadData()
   }, [])
+
+  const handleCopyUrl = (url: string) => {
+    navigator.clipboard.writeText(url)
+    toast.success('Cloudinary URL copied to clipboard!')
+  }
+
+  const handleDeleteMedia = async (publicId: string) => {
+    if (!window.confirm('Delete this image from Cloudinary?')) return
+    const toastId = toast.loading('Deleting image from Cloudinary...')
+    const ok = await cloudinaryService.deleteImage(publicId)
+    if (ok) {
+      toast.success('Image deleted from Cloudinary', { id: toastId })
+      setMediaList(mediaList.filter(m => m.public_id !== publicId))
+    } else {
+      toast.error('Failed to delete image', { id: toastId })
+    }
+  }
 
   const publishedCount = posts.filter(p => p.status === 'PUBLISHED').length
   const draftsCount = posts.filter(p => p.status === 'DRAFT').length
@@ -217,6 +241,11 @@ export function AdminBlogCMSPage() {
         {activeTab === 'tags' && (
           <button onClick={handleCreateTag} className="admin-btn admin-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Plus size={15} /> Add Tag
+          </button>
+        )}
+        {activeTab === 'media' && (
+          <button onClick={() => setIsMediaModalOpen(true)} className="admin-btn admin-btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <UploadCloud size={15} /> Upload to Cloudinary
           </button>
         )}
       </div>
@@ -623,6 +652,152 @@ export function AdminBlogCMSPage() {
           </table>
         </div>
       )}
+
+      {/* TAB: MEDIA (CLOUDINARY) */}
+      {activeTab === 'media' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div className="admin-grid-3" style={{ gap: '1rem' }}>
+            <div className="admin-stat-card">
+              <div className="admin-stat-label">Cloudinary Assets</div>
+              <div className="admin-stat-value">{mediaList.length}</div>
+              <div className="admin-stat-desc">Images stored on wnmabxiy</div>
+            </div>
+            <div className="admin-stat-card">
+              <div className="admin-stat-label" style={{ color: '#2563EB' }}>CDN Delivery</div>
+              <div className="admin-stat-value" style={{ color: '#2563EB', fontSize: '1.25rem' }}>Active</div>
+              <div className="admin-stat-desc">Global edge CDN caching</div>
+            </div>
+            <div className="admin-stat-card">
+              <div className="admin-stat-label" style={{ color: '#16A34A' }}>Cloud Name</div>
+              <div className="admin-stat-value" style={{ color: '#16A34A', fontSize: '1.25rem' }}>wnmabxiy</div>
+              <div className="admin-stat-desc">Folder: nets_blog</div>
+            </div>
+          </div>
+
+          <div className="admin-card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--adm-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FAFAFA' }}>
+              <div style={{ fontWeight: 600, fontSize: '15px' }}>All Cloudinary Media Assets</div>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={loadData}
+                  className="admin-btn admin-btn-secondary"
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
+                >
+                  <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsMediaModalOpen(true)}
+                  className="admin-btn admin-btn-primary"
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
+                >
+                  <UploadCloud size={14} /> Upload Image
+                </button>
+              </div>
+            </div>
+
+            {mediaList.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '3.5rem', color: '#64748B' }}>
+                <ImageIcon size={40} style={{ margin: '0 auto 0.75rem', opacity: 0.4 }} />
+                <div style={{ fontWeight: 600, fontSize: '15px', color: '#334155' }}>No media uploaded to Cloudinary yet</div>
+                <div style={{ fontSize: '13px', marginTop: '4px' }}>Click "Upload Image" to upload your first blog asset to Cloudinary.</div>
+              </div>
+            ) : (
+              <div style={{ padding: '1.25rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
+                {mediaList.map((img) => (
+                  <div
+                    key={img.public_id}
+                    style={{
+                      border: '1px solid #E2E8F0',
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      background: '#FFFFFF',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                    }}
+                  >
+                    <div style={{ position: 'relative', width: '100%', height: '140px', background: '#F1F5F9', overflow: 'hidden' }}>
+                      <img
+                        src={img.secure_url || img.url}
+                        alt={img.public_id}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                      <span
+                        style={{
+                          position: 'absolute',
+                          top: '6px',
+                          right: '6px',
+                          background: 'rgba(0,0,0,0.65)',
+                          color: '#fff',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        {img.format}
+                      </span>
+                    </div>
+
+                    <div style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: '13px', color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={img.public_id}>
+                        {img.public_id.split('/').pop()}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#64748B' }}>
+                        {img.width}x{img.height} px · {Math.round(img.bytes / 1024)} KB
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto', paddingTop: '6px', borderTop: '1px solid #F1F5F9' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyUrl(img.secure_url)}
+                          className="admin-btn admin-btn-ghost admin-btn-sm"
+                          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontSize: '11.5px' }}
+                          title="Copy Cloudinary URL"
+                        >
+                          <Copy size={12} /> Copy URL
+                        </button>
+                        <a
+                          href={img.secure_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="admin-btn admin-btn-ghost admin-btn-sm"
+                          style={{ padding: '4px 8px', color: '#64748B' }}
+                          title="View on CDN"
+                        >
+                          <ExternalLink size={12} />
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteMedia(img.public_id)}
+                          className="admin-btn admin-btn-ghost admin-btn-sm"
+                          style={{ padding: '4px 8px', color: '#DC2626' }}
+                          title="Delete"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <CloudinaryMediaModal
+        isOpen={isMediaModalOpen}
+        onClose={() => setIsMediaModalOpen(false)}
+        onSelectImage={(url) => {
+          loadData()
+          toast.success('Image ready in Cloudinary!')
+        }}
+        title="Upload Image to Cloudinary"
+      />
     </>
   )
 }

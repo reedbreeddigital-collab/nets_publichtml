@@ -35,7 +35,7 @@ func main() {
 	adminHandler := handlers.NewAdminHandler()
 	pricingHandler := handlers.NewPricingHandler()
 	settingsHandler := handlers.NewSettingsHandler()
-	blogHandler := handlers.NewBlogHandler()
+	blogHandler := handlers.NewBlogHandler(cfg)
 
 	// Root Route & Dynamic Sub-routes
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -339,6 +339,26 @@ func main() {
 		if r.Method == http.MethodDelete || r.Method == http.MethodPost {
 			blogHandler.DeleteSubscriber(w, r)
 		} else {
+			response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
+		}
+	})
+
+	// Cloudinary Image Upload & Fetch Routes
+	mux.HandleFunc("/api/v1/cms/blog/upload-image", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			blogHandler.UploadImage(w, r)
+		} else {
+			response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
+		}
+	})
+
+	mux.HandleFunc("/api/v1/cms/blog/images", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			blogHandler.GetImages(w, r)
+		case http.MethodDelete, http.MethodPost:
+			blogHandler.DeleteImage(w, r)
+		default:
 			response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
 		}
 	})

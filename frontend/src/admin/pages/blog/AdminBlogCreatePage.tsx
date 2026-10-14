@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Save, Send, Image as ImageIcon, Loader2 } from 'lucide-react'
+import { ArrowLeft, Save, Send, Image as ImageIcon, Loader2, UploadCloud, FolderOpen } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
 import { RichTextEditor } from '../../components/blog/RichTextEditor'
 import { TagsInput } from '../../components/blog/TagsInput'
+import { CloudinaryMediaModal } from '../../components/blog/CloudinaryMediaModal'
 import { blogService } from '../../../services/blogService'
 import { BlogCategory } from '../../../types/blog'
 import { useAdminStore } from '../../store/useAdminStore'
@@ -24,6 +25,7 @@ export function AdminBlogCreatePage() {
   const [categories, setCategories] = useState<BlogCategory[]>([])
   const [isLoadingPost, setIsLoadingPost] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [showMediaModal, setShowMediaModal] = useState(false)
 
   useEffect(() => {
     async function init() {
@@ -284,11 +286,17 @@ export function AdminBlogCreatePage() {
 
             {/* Cover Image */}
             <div>
-              <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--adm-text-2)', marginBottom: '0.5rem' }}>
-                Featured Cover Image
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--adm-text-2)' }}>
+                  Featured Cover Image
+                </label>
+                <span style={{ fontSize: '10px', color: '#4338CA', background: '#EEF2FF', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                  Cloudinary
+                </span>
+              </div>
+
               <div
-                onClick={handleImagePrompt}
+                onClick={() => setShowMediaModal(true)}
                 style={{
                   position: 'relative',
                   width: '100%',
@@ -314,25 +322,47 @@ export function AdminBlogCreatePage() {
                   </>
                 ) : (
                   <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--adm-text-3)' }}>
-                    <ImageIcon size={28} style={{ margin: '0 auto 0.5rem auto', opacity: 0.6 }} />
-                    <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--adm-text-2)' }}>Set Cover Image URL</div>
-                    <div style={{ fontSize: '11px', marginTop: '2px' }}>Click to enter URL</div>
+                    <UploadCloud size={28} style={{ margin: '0 auto 0.5rem auto', color: '#3B82F6', opacity: 0.8 }} />
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--adm-text-2)' }}>Upload or Choose Cover Image</div>
+                    <div style={{ fontSize: '11px', marginTop: '2px' }}>Cloudinary CDN · Auto WebP/AVIF</div>
                   </div>
                 )}
               </div>
-              {coverImage && (
+
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                 <button
                   type="button"
-                  onClick={() => setCoverImage('')}
-                  style={{ background: 'none', border: 'none', color: 'var(--adm-accent)', fontSize: '11px', cursor: 'pointer', marginTop: '4px', padding: 0 }}
+                  onClick={() => setShowMediaModal(true)}
+                  className="admin-btn admin-btn-secondary"
+                  style={{ flex: 1, fontSize: '11.5px', padding: '4px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
                 >
-                  Remove Cover Image
+                  <FolderOpen size={13} /> Cloudinary Gallery
                 </button>
-              )}
+
+                {coverImage && (
+                  <button
+                    type="button"
+                    onClick={() => setCoverImage('')}
+                    style={{ background: 'none', border: 'none', color: 'var(--adm-accent)', fontSize: '11px', cursor: 'pointer', padding: '4px 8px' }}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      <CloudinaryMediaModal
+        isOpen={showMediaModal}
+        onClose={() => setShowMediaModal(false)}
+        onSelectImage={(url) => {
+          setCoverImage(url)
+          toast.success('Cover image updated from Cloudinary')
+        }}
+        title="Select Article Cover Image (Cloudinary)"
+      />
     </div>
   )
 }
