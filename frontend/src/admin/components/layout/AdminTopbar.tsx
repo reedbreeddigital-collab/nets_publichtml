@@ -15,6 +15,8 @@ const pageTitles: Record<string, string> = {
   '/admin/pricing': 'Pricing Administration',
   '/admin/media': 'Fleet Media',
   '/admin/promotions': 'Promotions',
+  '/admin/cms/blog': 'Blog CMS & Content Management',
+  '/admin/cms/blog/create': 'Blog Editor & Publisher',
   '/admin/analytics': 'Analytics',
   '/admin/users': 'User Management',
   '/admin/activity': 'Activity Log',

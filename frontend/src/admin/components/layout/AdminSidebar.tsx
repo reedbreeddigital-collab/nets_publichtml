@@ -6,7 +6,7 @@ import { useRef, useEffect } from 'react'
 import {
   LayoutDashboard, FileText, CalendarCheck, Users, Truck,
   DollarSign, Megaphone, Image, BarChart3, UserCog,
-  Activity, Settings, LogOut, Newspaper,
+  Activity, Settings, LogOut, Newspaper, Edit3,
 } from 'lucide-react'
 import { useAdminStore, type AdminQuote } from '../../store/useAdminStore'
 
@@ -30,6 +30,11 @@ const operationsItems: SidebarNavItem[] = [
   { to: '/admin/customers', label: 'Customers', shortLabel: 'Clients', icon: Users },
 ]
 
+const contentItems: SidebarNavItem[] = [
+  { to: '/admin/cms/blog', label: 'Blog CMS', shortLabel: 'Blog', icon: Newspaper, end: true },
+  { to: '/admin/cms/blog/create', label: 'Blog Editor', shortLabel: 'Editor', icon: Edit3 },
+]
+
 const fleetItems: SidebarNavItem[] = [
   { to: '/admin/fleet', label: 'Fleet', shortLabel: 'Fleet', icon: Truck },
   { to: '/admin/pricing', label: 'Pricing', shortLabel: 'Pricing', icon: DollarSign },
@@ -38,7 +43,6 @@ const fleetItems: SidebarNavItem[] = [
 
 const growthItems: SidebarNavItem[] = [
   { to: '/admin/promotions', label: 'Promotions', shortLabel: 'Promos', icon: Megaphone },
-  { to: '/admin/cms/blog', label: 'Blog CMS', shortLabel: 'Blog', icon: Newspaper },
   { to: '/admin/analytics', label: 'Analytics', shortLabel: 'Analytics', icon: BarChart3 },
 ]
 
@@ -130,6 +134,13 @@ export function AdminSidebar() {
             return renderNavItem(item)
           })}
         </div>
+
+        {userRole !== 'sales_closer' && (
+          <div className="admin-nav-section">
+            <div className="admin-nav-label">Editorial & Blog</div>
+            {contentItems.map(renderNavItem)}
+          </div>
+        )}
 
         {isAdmin && (
           <>

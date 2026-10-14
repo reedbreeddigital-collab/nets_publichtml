@@ -39,6 +39,9 @@ export function AdminRouter() {
         <Route path="cms/blog" element={<AdminBlogCMSPage />} />
         <Route path="cms/blog/create" element={<AdminBlogCreatePage />} />
         <Route path="blog" element={<Navigate to="/admin/cms/blog" replace />} />
+        <Route path="blog/create" element={<Navigate to="/admin/cms/blog/create" replace />} />
+        <Route path="blog/editor" element={<Navigate to="/admin/cms/blog/create" replace />} />
+        <Route path="editor" element={<Navigate to="/admin/cms/blog/create" replace />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="activity" element={<ActivityLogPage />} />
         <Route path="settings" element={<SettingsPage />} />

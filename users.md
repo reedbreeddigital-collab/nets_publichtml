@@ -28,9 +28,9 @@ This document contains the authenticated staff and administrative accounts confi
 
 | Name | Email Address | Role | Default Password | Status | Access Scope |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Daniel Olateju** | `olateju.daniel@neweratransports.com` | `Staff` | `nets2026` | Active | CRM, Quotes, Bookings, Customers |
-| **Supo** | `supo89@hotmail.com` | `Staff` | `nets2026` | Active | CRM, Quotes, Bookings, Customers |
-| **Social Media Team** | `socialmedia@neweratransports.com` | `Staff` | `nets2026` | Active | CRM, Quotes, Bookings, Customers |
+| **Daniel Olateju** | `olateju.daniel@neweratransports.com` | `Staff` | `nets2026` | Active | CRM, Quotes, Bookings, Customers, Blog Editor |
+| **Supo** | `supo89@hotmail.com` | `Staff` | `nets2026` | Active | CRM, Quotes, Bookings, Customers, Blog Editor |
+| **Social Media Team** | `socialmedia@neweratransports.com` | `Staff` | `nets2026` | Active | Blog Editor & CMS, CRM, Quotes, Bookings, Customers |
 
 ---
 
@@ -43,6 +43,7 @@ This document contains the authenticated staff and administrative accounts confi
 | **Quote Management & PDF Export** | ✅ Allowed | ✅ Allowed |
 | **Booking & Trip Management** | ✅ Allowed | ✅ Allowed |
 | **Customer Profiles** | ✅ Allowed | ✅ Allowed |
+| **Blog CMS & Editorial Editor** | ✅ Allowed | ✅ Allowed |
 | **Fleet Management (Vehicles)** | ✅ Allowed | ❌ Restricted |
 | **Pricing Engine Config** | ✅ Allowed | ❌ Restricted |
 | **Media Library** | ✅ Allowed | ❌ Restricted |

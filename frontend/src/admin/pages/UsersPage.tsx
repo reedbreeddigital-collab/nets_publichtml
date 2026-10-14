@@ -25,6 +25,7 @@ const permissionMatrix: { module: string; admin: boolean; staff: boolean; sales_
   { module: 'Quotes', admin: true, staff: true, sales_closer: false },
   { module: 'Bookings', admin: true, staff: true, sales_closer: false },
   { module: 'Customers', admin: true, staff: true, sales_closer: false },
+  { module: 'Blog CMS & Editor', admin: true, staff: true, sales_closer: false },
   { module: 'Fleet', admin: true, staff: false, sales_closer: false },
   { module: 'Pricing', admin: true, staff: false, sales_closer: false },
   { module: 'Media', admin: true, staff: false, sales_closer: false },

@@ -202,7 +202,7 @@ export function ProfilePage() {
               <div className="admin-detail-row">
                 <span className="admin-detail-label">Access Scope</span>
                 <span className="admin-detail-value" style={{ color: 'var(--adm-text-2)' }}>
-                  {isAdmin ? 'Full Platform Control & Settings' : 'Operations, CRM Leads, Quotes & Bookings'}
+                  {isAdmin ? 'Full Platform Control & Settings' : 'Operations, CRM Leads, Quotes, Bookings & Blog Editor'}
                 </span>
               </div>
             </div>
