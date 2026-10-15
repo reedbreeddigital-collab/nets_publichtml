@@ -214,7 +214,7 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
 
     // Attempt to fetch from DB first (simulate login)
     try {
-      const res = await fetch('https://nets-web-backend.onrender.com/api/v1/users')
+      const res = await fetch(`${API_URL}/users`)
       if (res.ok) {
         const json = await res.json()
         const dbUsers = json.data?.users || []

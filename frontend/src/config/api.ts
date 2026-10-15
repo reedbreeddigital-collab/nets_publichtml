@@ -5,7 +5,7 @@
 export const API_URL = 
   import.meta.env.NEXT_PUBLIC_API_URL || 
   import.meta.env.VITE_API_URL || 
-  'https://nets-web-backend.onrender.com/api/v1'
+  'https://neweratransports-api.onrender.com/api/v1'
 
 const getGoogleMapsApiKey = (): string => {
   return import.meta.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyCPSko-yh7VsQtpPyKzRmbXJWQOdcCJ8BE'
