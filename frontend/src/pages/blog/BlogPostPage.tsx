@@ -26,6 +26,26 @@ const LinkedinIcon = () => (
   </svg>
 )
 
+/**
+ * Normalizes blog post content so both HTML and newline-separated plain text
+ * render with proper paragraph spacing, line breaks, and editorial typography.
+ */
+function formatBlogContent(raw?: string): string {
+  if (!raw) return ''
+  const trimmed = raw.trim()
+  // Check if content already contains block-level HTML tags
+  const hasBlockTags = /<(p|div|h[1-6]|ul|ol|blockquote|img|section|article|table|pre)\b/i.test(trimmed)
+  if (hasBlockTags) {
+    return trimmed
+  }
+  // If plain text with newlines, convert double newlines to paragraphs and single newlines to <br />
+  return trimmed
+    .split(/\n{2,}/)
+    .filter(Boolean)
+    .map(para => `<p>${para.trim().replace(/\n/g, '<br />')}</p>`)
+    .join('')
+}
+
 export function BlogPostPage() {
   const { slug } = useParams<{ slug: string }>()
   const [post, setPost] = useState<BlogPost | null>(null)
@@ -376,13 +396,8 @@ export function BlogPostPage() {
             )}
 
             <div
-              className="prose max-w-none"
-              style={{
-                fontSize: '16px',
-                lineHeight: 1.8,
-                color: '#1F2937',
-              }}
-              dangerouslySetInnerHTML={{ __html: post.content }}
+              className="prose blog-content max-w-none"
+              dangerouslySetInnerHTML={{ __html: formatBlogContent(post.content) }}
             />
 
             {post.tags && (

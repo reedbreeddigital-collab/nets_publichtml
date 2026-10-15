@@ -543,3 +543,175 @@ select.input-dark {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   BLOG EDITORIAL PROSE & PARAGRAPH TYPOGRAPHY
+   Ensures proper paragraph spacing, headings, lists & blockquotes
+   ═══════════════════════════════════════════════════════════════ */
+
+.prose,
+.blog-content,
+.prose-editor .tiptap {
+  color: #1F2937;
+  font-size: 1.0625rem; /* 17px */
+  line-height: 1.85;
+  width: 100%;
+  max-width: 100%;
+}
+
+.prose p,
+.blog-content p,
+.prose-editor .tiptap p {
+  margin-top: 0 !important;
+  margin-bottom: 1.625rem !important; /* 26px paragraph spacing */
+  line-height: 1.85 !important;
+  color: #374151 !important;
+  font-size: 1.0625rem !important;
+  letter-spacing: -0.01em;
+}
+
+.prose p:last-child,
+.blog-content p:last-child,
+.prose-editor .tiptap p:last-child {
+  margin-bottom: 0 !important;
+}
+
+.prose p:empty,
+.blog-content p:empty,
+.prose-editor .tiptap p:empty {
+  min-height: 1.625rem !important;
+}
+
+.prose-editor .tiptap:focus {
+  outline: none !important;
+}
+
+.prose h1, .blog-content h1, .prose-editor .tiptap h1 {
+  font-size: 2rem !important;
+  font-weight: 800 !important;
+  color: #0A3041 !important;
+  margin-top: 2.75rem !important;
+  margin-bottom: 1rem !important;
+  line-height: 1.3 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.prose h2, .blog-content h2, .prose-editor .tiptap h2 {
+  font-size: 1.625rem !important;
+  font-weight: 700 !important;
+  color: #0A3041 !important;
+  margin-top: 2.5rem !important;
+  margin-bottom: 1rem !important;
+  line-height: 1.35 !important;
+  letter-spacing: -0.015em !important;
+  border-bottom: 1px solid #F3F4F6;
+  padding-bottom: 0.5rem;
+}
+
+.prose h3, .blog-content h3, .prose-editor .tiptap h3 {
+  font-size: 1.3rem !important;
+  font-weight: 600 !important;
+  color: #0A3041 !important;
+  margin-top: 2rem !important;
+  margin-bottom: 0.75rem !important;
+  line-height: 1.4 !important;
+}
+
+.prose h4, .blog-content h4, .prose-editor .tiptap h4 {
+  font-size: 1.125rem !important;
+  font-weight: 600 !important;
+  color: #0A3041 !important;
+  margin-top: 1.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.prose ul, .blog-content ul, .prose-editor .tiptap ul {
+  list-style-type: disc !important;
+  margin-top: 0.75rem !important;
+  margin-bottom: 1.625rem !important;
+  padding-left: 1.75rem !important;
+}
+
+.prose ol, .blog-content ol, .prose-editor .tiptap ol {
+  list-style-type: decimal !important;
+  margin-top: 0.75rem !important;
+  margin-bottom: 1.625rem !important;
+  padding-left: 1.75rem !important;
+}
+
+.prose li, .blog-content li, .prose-editor .tiptap li {
+  margin-bottom: 0.5rem !important;
+  line-height: 1.75 !important;
+  color: #374151 !important;
+}
+
+.prose blockquote, .blog-content blockquote, .prose-editor .tiptap blockquote {
+  border-left: 4px solid var(--color-nets-red, #C40000) !important;
+  background: #F9FAFB !important;
+  padding: 1.25rem 1.75rem !important;
+  margin: 2rem 0 !important;
+  font-style: italic !important;
+  color: #1F2937 !important;
+  border-radius: 0 8px 8px 0 !important;
+  font-size: 1.1rem !important;
+  line-height: 1.75 !important;
+}
+
+.prose blockquote p, .blog-content blockquote p, .prose-editor .tiptap blockquote p {
+  margin-bottom: 0 !important;
+  color: #1F2937 !important;
+}
+
+.prose img, .blog-content img, .prose-editor .tiptap img {
+  max-width: 100% !important;
+  height: auto !important;
+  border-radius: 8px !important;
+  margin: 2.25rem auto !important;
+  display: block !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+}
+
+.prose a, .blog-content a, .prose-editor .tiptap a {
+  color: var(--color-nets-navy, #1A1FA8) !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+  font-weight: 600 !important;
+  transition: color 0.15s ease !important;
+}
+
+.prose a:hover, .blog-content a:hover, .prose-editor .tiptap a:hover {
+  color: var(--color-nets-red, #C40000) !important;
+}
+
+.prose strong, .blog-content strong, .prose-editor .tiptap strong,
+.prose b, .blog-content b, .prose-editor .tiptap b {
+  font-weight: 700 !important;
+  color: #111827 !important;
+}
+
+.prose code, .blog-content code, .prose-editor .tiptap code {
+  background: #F3F4F6 !important;
+  color: #C0272D !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+  font-size: 0.875em !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+}
+
+.prose pre, .blog-content pre, .prose-editor .tiptap pre {
+  background: #0F172A !important;
+  color: #F8FAFC !important;
+  padding: 1.25rem 1.5rem !important;
+  border-radius: 8px !important;
+  margin: 1.75rem 0 !important;
+  overflow-x: auto !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-size: 0.9rem !important;
+  line-height: 1.65 !important;
+}
+
+.prose hr, .blog-content hr, .prose-editor .tiptap hr {
+  border: 0 !important;
+  border-top: 1px solid #E5E7EB !important;
+  margin: 2.5rem 0 !important;
+}
+
