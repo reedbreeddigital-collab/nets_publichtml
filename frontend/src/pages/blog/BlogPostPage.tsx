@@ -7,6 +7,7 @@ import {
 import toast, { Toaster } from 'react-hot-toast'
 import { blogService } from '../../services/blogService'
 import { BlogPost, BlogComment } from '../../types/blog'
+import { marked } from 'marked'
 
 const TwitterIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
@@ -27,23 +28,18 @@ const LinkedinIcon = () => (
 )
 
 /**
- * Normalizes blog post content so both HTML and newline-separated plain text
- * render with proper paragraph spacing, line breaks, and editorial typography.
+ * Normalizes blog post content so both HTML and Markdown (as well as plain text)
+ * render with proper paragraph spacing, line breaks, headings, images, and editorial typography.
  */
 function formatBlogContent(raw?: string): string {
   if (!raw) return ''
   const trimmed = raw.trim()
-  // Check if content already contains block-level HTML tags
-  const hasBlockTags = /<(p|div|h[1-6]|ul|ol|blockquote|img|section|article|table|pre)\b/i.test(trimmed)
-  if (hasBlockTags) {
+  try {
+    return marked.parse(trimmed, { async: false, gfm: true, breaks: true }) as string
+  } catch (err) {
+    console.warn('Error formatting blog content with marked:', err)
     return trimmed
   }
-  // If plain text with newlines, convert double newlines to paragraphs and single newlines to <br />
-  return trimmed
-    .split(/\n{2,}/)
-    .filter(Boolean)
-    .map(para => `<p>${para.trim().replace(/\n/g, '<br />')}</p>`)
-    .join('')
 }
 
 export function BlogPostPage() {
