@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Calendar, User, Search, BookOpen, Send, Sparkles } from 'lucide-react'
+import { ArrowRight, Calendar, User, Search, BookOpen, Send, Sparkles, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
 import { blogService } from '../../services/blogService'
 import { BlogPost, BlogCategory } from '../../types/blog'
@@ -9,10 +9,27 @@ export function BlogListPage() {
   const [posts, setPosts] = useState<BlogPost[]>([])
   const [categories, setCategories] = useState<BlogCategory[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [categoryPage, setCategoryPage] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [subEmail, setSubEmail] = useState('')
   const [isSubscribing, setIsSubscribing] = useState(false)
+
+  const CATEGORIES_PER_PAGE = 3
+  const totalCategoryPages = Math.ceil(categories.length / CATEGORIES_PER_PAGE) || 1
+  const visibleCategories = categories.slice(
+    categoryPage * CATEGORIES_PER_PAGE,
+    (categoryPage + 1) * CATEGORIES_PER_PAGE
+  )
+
+  const handleCategorySelect = (catId: string) => {
+    setSelectedCategory(catId)
+    if (catId === 'all') return
+    const catIdx = categories.findIndex(c => c.id === catId || c.name === catId)
+    if (catIdx !== -1) {
+      setCategoryPage(Math.floor(catIdx / CATEGORIES_PER_PAGE))
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -143,19 +160,19 @@ export function BlogListPage() {
             flexWrap: 'wrap',
             gap: '1.25rem',
           }}>
-            {/* Category Filter Pills */}
+            {/* Category Filter Pills & Controls */}
             <div style={{
               display: 'flex',
-              gap: '0.5rem',
-              overflowX: 'auto',
-              paddingBottom: '4px',
-              maxWidth: '100%',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '0.625rem',
             }}>
+              {/* All Articles Pill */}
               <button
                 type="button"
-                onClick={() => setSelectedCategory('all')}
+                onClick={() => handleCategorySelect('all')}
                 style={{
-                  padding: '0.5rem 1.25rem',
+                  padding: '0.5rem 1.15rem',
                   borderRadius: '9999px',
                   fontSize: '13px',
                   fontWeight: 600,
@@ -171,16 +188,17 @@ export function BlogListPage() {
                 All Articles ({publishedPosts.length})
               </button>
 
-              {categories.map(cat => {
+              {/* Paginated Category Pills (3 at a time) */}
+              {visibleCategories.map(cat => {
                 const count = publishedPosts.filter(p => p.category_id === cat.id || p.category === cat.name).length
                 const active = selectedCategory === cat.id || selectedCategory === cat.name
                 return (
                   <button
                     key={cat.id}
                     type="button"
-                    onClick={() => setSelectedCategory(cat.id)}
+                    onClick={() => handleCategorySelect(cat.id)}
                     style={{
-                      padding: '0.5rem 1.25rem',
+                      padding: '0.5rem 1.15rem',
                       borderRadius: '9999px',
                       fontSize: '13px',
                       fontWeight: 600,
@@ -197,6 +215,120 @@ export function BlogListPage() {
                   </button>
                 )
               })}
+
+              {/* Category Pagination Controller */}
+              {totalCategoryPages > 1 && (
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '2px',
+                  background: '#F1F5F9',
+                  borderRadius: '9999px',
+                  padding: '2px 5px',
+                  border: '1px solid #E2E8F0',
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => setCategoryPage(prev => Math.max(0, prev - 1))}
+                    disabled={categoryPage === 0}
+                    title="Previous 3 categories"
+                    style={{
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: 'none',
+                      background: categoryPage === 0 ? 'transparent' : '#FFFFFF',
+                      color: categoryPage === 0 ? '#9CA3AF' : '#1E293B',
+                      cursor: categoryPage === 0 ? 'not-allowed' : 'pointer',
+                      boxShadow: categoryPage === 0 ? 'none' : '0 1px 2px rgba(0,0,0,0.06)',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: '#64748B',
+                    padding: '0 5px',
+                    userSelect: 'none',
+                    letterSpacing: '0.02em',
+                  }}>
+                    {categoryPage + 1}/{totalCategoryPages}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => setCategoryPage(prev => Math.min(totalCategoryPages - 1, prev + 1))}
+                    disabled={categoryPage >= totalCategoryPages - 1}
+                    title="Next 3 categories"
+                    style={{
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: 'none',
+                      background: categoryPage >= totalCategoryPages - 1 ? 'transparent' : '#FFFFFF',
+                      color: categoryPage >= totalCategoryPages - 1 ? '#9CA3AF' : '#1E293B',
+                      cursor: categoryPage >= totalCategoryPages - 1 ? 'not-allowed' : 'pointer',
+                      boxShadow: categoryPage >= totalCategoryPages - 1 ? 'none' : '0 1px 2px rgba(0,0,0,0.06)',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              )}
+
+              {/* Category Dropdown Selector */}
+              {categories.length > 0 && (
+                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => handleCategorySelect(e.target.value)}
+                    style={{
+                      appearance: 'none',
+                      WebkitAppearance: 'none',
+                      padding: '0.5rem 2.25rem 0.5rem 1rem',
+                      borderRadius: '9999px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      border: '1px solid #E5E7EB',
+                      background: '#F9FAFB',
+                      color: selectedCategory !== 'all' ? 'var(--color-nets-navy, #0A3041)' : '#4B5563',
+                      cursor: 'pointer',
+                      outline: 'none',
+                      transition: 'border-color 0.15s ease',
+                    }}
+                    title="Select any category from full list"
+                  >
+                    <option value="all">All Categories ({publishedPosts.length})</option>
+                    {categories.map(cat => {
+                      const count = publishedPosts.filter(p => p.category_id === cat.id || p.category === cat.name).length
+                      return (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name} ({count})
+                        </option>
+                      )
+                    })}
+                  </select>
+                  <ChevronDown
+                    size={14}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      pointerEvents: 'none',
+                      color: '#6B7280',
+                    }}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Search Input */}

@@ -4,6 +4,28 @@ import { marked } from 'marked'
 import katex from 'katex'
 import renderMathInElement from 'katex/contrib/auto-render'
 
+/**
+ * Cleans LaTeX commands into human-readable math representation
+ * (Algorithm from nccas/proposal.html LiveParser)
+ */
+export function cleanMath(math: string): string {
+  return String(math || '')
+    .replace(/\\textbf\{([^}]+)\}/g, '$1')
+    .replace(/\\mathbf\{([^}]+)\}/g, '$1')
+    .replace(/\\text\{([^}]+)\}/g, '$1')
+    .replace(/\\left\(\s*\\frac\{([^}]+)\}\{([^}]+)\}\s*\\right\)/g, '($1 ÷ $2)')
+    .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1 ÷ $2)')
+    .replace(/\\left\(/g, '(')
+    .replace(/\\right\)/g, ')')
+    .replace(/\\times/g, '×')
+    .replace(/\\div/g, '÷')
+    .replace(/\\quad/g, ' ')
+    .replace(/\\&amp;/g, '&')
+    .replace(/\\&/g, '&')
+    .replace(/\\([\{\}])/g, '$1')
+    .trim()
+}
+
 // Configure Turndown with ATX headings, fenced code blocks, and custom rules
 const turndownService = new TurndownService({
   headingStyle: 'atx',
@@ -22,23 +44,20 @@ turndownService.addRule('strikethrough', {
   replacement: (content) => `~~${content}~~`,
 })
 
-// Preserve KaTeX math markup when converting from HTML back to Markdown
-turndownService.addRule('katex', {
+// Preserve math blocks and inline math when converting from HTML back to Markdown
+turndownService.addRule('mathFormula', {
   filter: (node) => {
     return (
-      node.nodeName === 'SPAN' &&
-      (node.classList.contains('katex') || node.classList.contains('katex-display'))
+      (node.nodeName === 'DIV' && node.classList.contains('math-block')) ||
+      (node.nodeName === 'SPAN' && (node.classList.contains('math-inline') || node.classList.contains('katex') || node.classList.contains('katex-display')))
     )
   },
   replacement: (content, node) => {
     const el = node as HTMLElement
     const annotation = el.querySelector('annotation')
-    if (annotation && annotation.textContent) {
-      const isDisplay = el.classList.contains('katex-display') || el.closest('.katex-display')
-      const formula = annotation.textContent.trim()
-      return isDisplay ? `\n\n$$\n${formula}\n$$\n\n` : `$${formula}$`
-    }
-    return content
+    const isDisplay = el.classList.contains('math-block') || el.classList.contains('katex-display') || el.closest('.katex-display')
+    const formula = (annotation && annotation.textContent ? annotation.textContent : el.textContent || content).trim()
+    return isDisplay ? `\n\n$$\n${formula}\n$$\n\n` : `$${formula}$`
   },
 })
 
@@ -47,7 +66,7 @@ turndownService.addRule('blogTableWrapper', {
   filter: (node) => {
     return (
       node.nodeName === 'DIV' &&
-      node.classList.contains('blog-table-wrapper')
+      (node.classList.contains('blog-table-wrapper') || node.classList.contains('table-wrap'))
     )
   },
   replacement: (content) => `\n\n${content.trim()}\n\n`,
@@ -95,15 +114,30 @@ const mathExtension = {
     return false
   },
   renderer(token: any) {
-    try {
-      return katex.renderToString(token.text, {
-        displayMode: token.display,
-        throwOnError: false,
-      })
-    } catch (err) {
-      console.warn('KaTeX rendering error:', err)
-      return token.raw
+    const rawText = token.text.trim()
+    const cleaned = cleanMath(rawText)
+
+    // Check if this has theoretical/academic LaTeX notation
+    const hasLatexNotation = /\\(int|sum|sqrt|prod|alpha|beta|gamma|delta|pi|sigma|partial|infty|lim|matrix|pm|ge|le|neq|approx|rightarrow|frac)\b/.test(rawText)
+
+    if (hasLatexNotation) {
+      try {
+        const katexHtml = katex.renderToString(rawText, {
+          displayMode: token.display,
+          throwOnError: false,
+        })
+        return token.display
+          ? `<div class="math-block">${katexHtml}</div>`
+          : `<span class="math-inline">${katexHtml}</span>`
+      } catch (err) {
+        console.warn('KaTeX rendering error, using cleanMath:', err)
+      }
     }
+
+    // Default to the proposal.html clean executive math block presentation
+    return token.display
+      ? `<div class="math-block">${cleaned}</div>`
+      : `<span class="math-inline">${cleaned}</span>`
   },
 }
 
@@ -113,7 +147,7 @@ marked.use({
   renderer: {
     table(token: any) {
       const tableHtml = marked.Renderer.prototype.table.call(this, token)
-      return `<div class="blog-table-wrapper">\n${tableHtml}</div>\n`
+      return `<div class="table-wrap blog-table-wrapper">\n${tableHtml}</div>\n`
     },
   },
 })
@@ -146,7 +180,7 @@ export function markdownToHtml(markdown: string): string {
 
 /**
  * Normalizes blog post content so both HTML and Markdown (as well as plain text)
- * render with proper paragraph spacing, line breaks, headings, images, tables, and KaTeX math.
+ * render with proper paragraph spacing, line breaks, headings, images, tables, and math blocks.
  */
 export function formatBlogContent(raw?: string): string {
   if (!raw) return ''
