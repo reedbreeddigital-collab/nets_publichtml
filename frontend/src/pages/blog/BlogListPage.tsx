@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Calendar, User, Search, BookOpen, Send, Sparkles, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
@@ -10,11 +10,13 @@ export function BlogListPage() {
   const [categories, setCategories] = useState<BlogCategory[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [categoryPage, setCategoryPage] = useState(0)
+  const [postPage, setPostPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [subEmail, setSubEmail] = useState('')
   const [isSubscribing, setIsSubscribing] = useState(false)
 
+  const POSTS_PER_PAGE = 9
   const CATEGORIES_PER_PAGE = 3
   const totalCategoryPages = Math.ceil(categories.length / CATEGORIES_PER_PAGE) || 1
   const visibleCategories = categories.slice(
@@ -24,6 +26,7 @@ export function BlogListPage() {
 
   const handleCategorySelect = (catId: string) => {
     setSelectedCategory(catId)
+    setPostPage(1)
     if (catId === 'all') return
     const catIdx = categories.findIndex(c => c.id === catId || c.name === catId)
     if (catIdx !== -1) {
@@ -59,6 +62,45 @@ export function BlogListPage() {
       (post.excerpt && post.excerpt.toLowerCase().includes(searchQuery.toLowerCase()))
     return matchesCat && matchesSearch
   })
+
+  const totalPostPages = Math.ceil(filteredPosts.length / POSTS_PER_PAGE) || 1
+  const safePostPage = Math.min(Math.max(1, postPage), totalPostPages)
+  const paginatedPosts = filteredPosts.slice(
+    (safePostPage - 1) * POSTS_PER_PAGE,
+    safePostPage * POSTS_PER_PAGE
+  )
+
+  useEffect(() => {
+    if (postPage > totalPostPages) {
+      setPostPage(1)
+    }
+  }, [totalPostPages, postPage])
+
+  const handlePostPageChange = (newPage: number) => {
+    setPostPage(newPage)
+    const section = document.getElementById('blog-posts-section')
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+
+  const postPageNumbers = useMemo(() => {
+    const pages: (number | string)[] = []
+    if (totalPostPages <= 7) {
+      for (let i = 1; i <= totalPostPages; i++) {
+        pages.push(i)
+      }
+    } else {
+      if (safePostPage <= 4) {
+        pages.push(1, 2, 3, 4, 5, '...', totalPostPages)
+      } else if (safePostPage >= totalPostPages - 3) {
+        pages.push(1, '...', totalPostPages - 4, totalPostPages - 3, totalPostPages - 2, totalPostPages - 1, totalPostPages)
+      } else {
+        pages.push(1, '...', safePostPage - 1, safePostPage, safePostPage + 1, '...', totalPostPages)
+      }
+    }
+    return pages
+  }, [safePostPage, totalPostPages])
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -338,7 +380,10 @@ export function BlogListPage() {
                 type="text"
                 placeholder="Search articles..."
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
+                onChange={e => {
+                  setSearchQuery(e.target.value)
+                  setPostPage(1)
+                }}
                 style={{
                   width: '100%',
                   padding: '0.625rem 1rem 0.625rem 2.5rem',
@@ -355,7 +400,7 @@ export function BlogListPage() {
       </section>
 
       {/* Blog Posts Grid */}
-      <section style={{ paddingTop: '4rem', paddingBottom: '6rem' }}>
+      <section id="blog-posts-section" style={{ paddingTop: '4rem', paddingBottom: '6rem' }}>
         <div className="container-nets">
           {loading ? (
             <div style={{ textAlign: 'center', padding: '5rem 0', color: '#6B7280' }}>
@@ -379,7 +424,7 @@ export function BlogListPage() {
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => { setSearchQuery(''); setSelectedCategory('all'); }}
+                  onClick={() => { setSearchQuery(''); setSelectedCategory('all'); setPostPage(1); }}
                   className="btn btn-outline"
                   style={{ padding: '0.5rem 1.5rem', fontSize: '13px' }}
                 >
@@ -388,12 +433,13 @@ export function BlogListPage() {
               )}
             </div>
           ) : (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-              gap: '2rem',
-            }}>
-              {filteredPosts.map(post => {
+            <>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+                gap: '2rem',
+              }}>
+                {paginatedPosts.map(post => {
                 const cover = post.cover_image || 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=80'
                 const displayDate = post.published_at || post.created_at
                   ? new Date(post.published_at || post.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -545,7 +591,150 @@ export function BlogListPage() {
                 )
               })}
             </div>
-          )}
+
+            {/* Post Pagination Controller */}
+            {totalPostPages > 1 && (
+              <div style={{
+                marginTop: '3.5rem',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '1.25rem',
+              }}>
+                {/* Article Count Indicator */}
+                <div style={{
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  color: '#6B7280',
+                }}>
+                  Showing <span style={{ fontWeight: 700, color: '#111827' }}>{(safePostPage - 1) * POSTS_PER_PAGE + 1}</span>–
+                  <span style={{ fontWeight: 700, color: '#111827' }}>{Math.min(safePostPage * POSTS_PER_PAGE, filteredPosts.length)}</span> of{' '}
+                  <span style={{ fontWeight: 700, color: '#111827' }}>{filteredPosts.length}</span> articles
+                </div>
+
+                {/* Pagination Controls Bar */}
+                <nav
+                  aria-label="Blog posts navigation"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                    background: '#FFFFFF',
+                    padding: '0.375rem 0.5rem',
+                    borderRadius: '9999px',
+                    border: '1px solid #E5E7EB',
+                    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.05)',
+                  }}
+                >
+                  {/* Previous Page Button */}
+                  <button
+                    type="button"
+                    onClick={() => handlePostPageChange(Math.max(1, safePostPage - 1))}
+                    disabled={safePostPage <= 1}
+                    title="Previous page"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '0.5rem 0.875rem',
+                      borderRadius: '9999px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      border: 'none',
+                      background: safePostPage <= 1 ? 'transparent' : '#F3F4F6',
+                      color: safePostPage <= 1 ? '#9CA3AF' : '#1F2937',
+                      cursor: safePostPage <= 1 ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <ChevronLeft size={16} />
+                    <span>Previous</span>
+                  </button>
+
+                  {/* Page Numbers */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0 0.25rem' }}>
+                    {postPageNumbers.map((p, idx) => {
+                      if (typeof p === 'string') {
+                        return (
+                          <span
+                            key={`ellipsis-${idx}`}
+                            style={{
+                              padding: '0 0.375rem',
+                              color: '#9CA3AF',
+                              fontSize: '13px',
+                              userSelect: 'none',
+                              fontWeight: 600,
+                            }}
+                          >
+                            ...
+                          </span>
+                        )
+                      }
+                      const isActive = safePostPage === p
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => handlePostPageChange(p)}
+                          style={{
+                            minWidth: '34px',
+                            height: '34px',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '13px',
+                            fontWeight: isActive ? 700 : 500,
+                            border: 'none',
+                            cursor: 'pointer',
+                            background: isActive ? 'var(--color-nets-navy, #0A3041)' : 'transparent',
+                            color: isActive ? '#FFFFFF' : '#374151',
+                            boxShadow: isActive ? '0 2px 4px rgba(10, 48, 65, 0.2)' : 'none',
+                            transition: 'all 0.15s ease',
+                          }}
+                          onMouseEnter={e => {
+                            if (!isActive) e.currentTarget.style.background = '#F3F4F6'
+                          }}
+                          onMouseLeave={e => {
+                            if (!isActive) e.currentTarget.style.background = 'transparent'
+                          }}
+                          title={`Page ${p}`}
+                        >
+                          {p}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Next Page Button */}
+                  <button
+                    type="button"
+                    onClick={() => handlePostPageChange(Math.min(totalPostPages, safePostPage + 1))}
+                    disabled={safePostPage >= totalPostPages}
+                    title="Next page"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '0.5rem 0.875rem',
+                      borderRadius: '9999px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      border: 'none',
+                      background: safePostPage >= totalPostPages ? 'transparent' : '#F3F4F6',
+                      color: safePostPage >= totalPostPages ? '#9CA3AF' : '#1F2937',
+                      cursor: safePostPage >= totalPostPages ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span>Next</span>
+                    <ChevronRight size={16} />
+                  </button>
+                </nav>
+              </div>
+            )}
+          </>
+        )}
         </div>
       </section>
 
