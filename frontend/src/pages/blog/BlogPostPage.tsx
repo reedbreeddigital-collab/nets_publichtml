@@ -7,7 +7,7 @@ import {
 import toast, { Toaster } from 'react-hot-toast'
 import { blogService } from '../../services/blogService'
 import { BlogPost, BlogComment } from '../../types/blog'
-import { marked } from 'marked'
+import { formatBlogContent, renderKatexInElement } from '../../admin/components/blog/markdownUtils'
 
 const TwitterIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
@@ -27,26 +27,12 @@ const LinkedinIcon = () => (
   </svg>
 )
 
-/**
- * Normalizes blog post content so both HTML and Markdown (as well as plain text)
- * render with proper paragraph spacing, line breaks, headings, images, and editorial typography.
- */
-function formatBlogContent(raw?: string): string {
-  if (!raw) return ''
-  const trimmed = raw.trim()
-  try {
-    return marked.parse(trimmed, { async: false, gfm: true, breaks: true }) as string
-  } catch (err) {
-    console.warn('Error formatting blog content with marked:', err)
-    return trimmed
-  }
-}
-
 export function BlogPostPage() {
   const { slug } = useParams<{ slug: string }>()
   const [post, setPost] = useState<BlogPost | null>(null)
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([])
   const [loading, setLoading] = useState(true)
+  const articleContentRef = useRef<HTMLDivElement>(null)
 
   // Comments form
   const [firstName, setFirstName] = useState('')
@@ -82,6 +68,13 @@ export function BlogPostPage() {
     loadPost()
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [slug])
+
+  // Auto-render KaTeX math notations in article content
+  useEffect(() => {
+    if (articleContentRef.current && post?.content) {
+      renderKatexInElement(articleContentRef.current)
+    }
+  }, [post?.content])
 
   const handleShare = (platform: 'twitter' | 'facebook' | 'linkedin' | 'email' | 'copy') => {
     const url = window.location.href
@@ -392,6 +385,7 @@ export function BlogPostPage() {
             )}
 
             <div
+              ref={articleContentRef}
               className="prose blog-content max-w-none"
               dangerouslySetInnerHTML={{ __html: formatBlogContent(post.content) }}
             />

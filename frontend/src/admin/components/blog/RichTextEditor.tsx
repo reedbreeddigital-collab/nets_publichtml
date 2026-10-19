@@ -3,10 +3,12 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import Image from '@tiptap/extension-image'
+import { Table as TableExtension, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
 import {
   Bold, Italic, Strikethrough, Code, List, ListOrdered,
   Quote, Undo, Redo, Heading1, Heading2, Heading3, Link as LinkIcon, Image as ImageIcon,
-  FileText, FileCode, Columns, Eye, Edit3, Table, Minus, HelpCircle, Check, X
+  FileText, FileCode, Columns, Eye, Edit3, Table, Minus, HelpCircle, Check, X,
+  Sigma, Plus, Trash2
 } from 'lucide-react'
 
 import { CloudinaryMediaModal } from './CloudinaryMediaModal'
@@ -14,7 +16,8 @@ import {
   htmlToMarkdown,
   markdownToHtml,
   isHtmlContent,
-  normalizeContentForMode
+  normalizeContentForMode,
+  renderKatexInElement
 } from './markdownUtils'
 
 export type EditorMode = 'wysiwyg' | 'markdown'
@@ -53,17 +56,21 @@ const WysiwygMenuBar = ({ editor, onOpenMediaModal }: { editor: any; onOpenMedia
     { icon: List, action: () => editor.chain().focus().toggleBulletList().run(), isActive: editor.isActive('bulletList'), label: 'Bullet List' },
     { icon: ListOrdered, action: () => editor.chain().focus().toggleOrderedList().run(), isActive: editor.isActive('orderedList'), label: 'Numbered List' },
     { icon: Quote, action: () => editor.chain().focus().toggleBlockquote().run(), isActive: editor.isActive('blockquote'), label: 'Quote' },
+    { icon: Table, action: () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(), isActive: editor.isActive('table'), label: 'Insert Table (3x3)' },
     { icon: LinkIcon, action: toggleLink, isActive: editor.isActive('link'), label: 'Link' },
     { icon: ImageIcon, action: onOpenMediaModal, isActive: false, label: 'Upload or Select Image (Cloudinary)' },
     { icon: Undo, action: () => editor.chain().focus().undo().run(), isActive: false, label: 'Undo' },
     { icon: Redo, action: () => editor.chain().focus().redo().run(), isActive: false, label: 'Redo' },
   ]
 
+  const isTableActive = editor.isActive('table')
+
   return (
     <div style={{
       display: 'flex',
       flexWrap: 'wrap',
       gap: '4px',
+      alignItems: 'center',
       padding: '8px 12px',
       borderBottom: '1px solid #E2E8F0',
       background: '#F8FAFC',
@@ -102,6 +109,62 @@ const WysiwygMenuBar = ({ editor, onOpenMediaModal }: { editor: any; onOpenMedia
           </button>
         )
       })}
+
+      {/* Active Table Manipulation Toolbar */}
+      {isTableActive && (
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          marginLeft: '8px',
+          padding: '3px 8px',
+          background: '#EEF2F6',
+          borderRadius: '6px',
+          border: '1px solid #CBD5E1',
+        }}>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569', marginRight: '4px' }}>Table:</span>
+          <button
+            type="button"
+            title="Add row below"
+            onClick={(e) => { e.preventDefault(); editor.chain().focus().addRowAfter().run() }}
+            style={{ fontSize: '11px', fontWeight: 600, padding: '2px 7px', border: '1px solid #CBD5E1', borderRadius: '4px', background: '#FFFFFF', cursor: 'pointer', color: '#1E293B' }}
+          >
+            + Row
+          </button>
+          <button
+            type="button"
+            title="Delete current row"
+            onClick={(e) => { e.preventDefault(); editor.chain().focus().deleteRow().run() }}
+            style={{ fontSize: '11px', fontWeight: 600, padding: '2px 7px', border: '1px solid #CBD5E1', borderRadius: '4px', background: '#FFFFFF', cursor: 'pointer', color: '#DC2626' }}
+          >
+            - Row
+          </button>
+          <button
+            type="button"
+            title="Add column right"
+            onClick={(e) => { e.preventDefault(); editor.chain().focus().addColumnAfter().run() }}
+            style={{ fontSize: '11px', fontWeight: 600, padding: '2px 7px', border: '1px solid #CBD5E1', borderRadius: '4px', background: '#FFFFFF', cursor: 'pointer', color: '#1E293B' }}
+          >
+            + Col
+          </button>
+          <button
+            type="button"
+            title="Delete current column"
+            onClick={(e) => { e.preventDefault(); editor.chain().focus().deleteColumn().run() }}
+            style={{ fontSize: '11px', fontWeight: 600, padding: '2px 7px', border: '1px solid #CBD5E1', borderRadius: '4px', background: '#FFFFFF', cursor: 'pointer', color: '#DC2626' }}
+          >
+            - Col
+          </button>
+          <button
+            type="button"
+            title="Delete entire table"
+            onClick={(e) => { e.preventDefault(); editor.chain().focus().deleteTable().run() }}
+            style={{ fontSize: '11px', fontWeight: 600, padding: '2px 7px', border: '1px solid #FECACA', borderRadius: '4px', background: '#FEF2F2', cursor: 'pointer', color: '#DC2626' }}
+          >
+            Delete Table
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -114,6 +177,7 @@ interface MarkdownToolbarProps {
   onOpenMediaModal: () => void
   onInsertTable: () => void
   onInsertHr: () => void
+  onInsertMath: (isBlock?: boolean) => void
   onOpenCheatsheet: () => void
 }
 
@@ -124,6 +188,7 @@ const MarkdownToolbar = ({
   onOpenMediaModal,
   onInsertTable,
   onInsertHr,
+  onInsertMath,
   onOpenCheatsheet,
 }: MarkdownToolbarProps) => {
   const tools = [
@@ -140,7 +205,9 @@ const MarkdownToolbar = ({
     { label: 'Insert Link [text](url)', icon: LinkIcon, action: onOpenLinkModal },
     { label: 'Insert Image (Cloudinary)', icon: ImageIcon, action: onOpenMediaModal },
     { label: 'Horizontal Rule (---)', icon: Minus, action: onInsertHr },
-    { label: 'Insert Table', icon: Table, action: onInsertTable },
+    { label: 'Insert Table Grid', icon: Table, action: onInsertTable },
+    { label: 'Inline Math ($E = mc^2$)', icon: Sigma, action: () => onInsertMath(false) },
+    { label: 'Block Equation ($$...$$)', icon: Sigma, action: () => onInsertMath(true) },
   ]
 
   return (
@@ -235,7 +302,11 @@ const MarkdownCheatsheetModal = ({ isOpen, onClose }: { isOpen: boolean; onClose
     { syntax: '`code`', desc: 'Inline code snippet' },
     { syntax: '```ts\ncode block\n```', desc: 'Fenced multiline code block' },
     { syntax: '---', desc: 'Horizontal divider line' },
-    { syntax: '| Col 1 | Col 2 |\n|---|---|\n| A | B |', desc: 'Markdown tabular grid' },
+    { syntax: '| Col 1 | Col 2 |\n| :--- | :---: |\n| Left | Center |', desc: 'Table with column alignment' },
+    { syntax: '$E = mc^2$', desc: 'KaTeX / LaTeX inline formula' },
+    { syntax: '$$\n\\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}\n$$', desc: 'KaTeX display equation block' },
+    { syntax: '$\\int_{0}^{\\infty} e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}$', desc: 'Calculus integrals & symbols' },
+    { syntax: '$\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}$', desc: 'Matrix and vector notation' },
   ]
 
   return (
@@ -376,6 +447,7 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
 
   // Refs
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const previewRef = useRef<HTMLDivElement>(null)
   const isInternalUpdateRef = useRef(false)
   const lastExternalContentRef = useRef<string>(content)
 
@@ -383,6 +455,12 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit,
+      TableExtension.configure({
+        resizable: true,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
@@ -403,6 +481,13 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
       onChange(html)
     },
   })
+
+  // Auto-render KaTeX math in live preview
+  useEffect(() => {
+    if (previewRef.current && (markdownView === 'split' || markdownView === 'preview')) {
+      renderKatexInElement(previewRef.current)
+    }
+  }, [markdownContent, markdownView, mode])
 
   // Synchronize when external content changes (e.g. post fetched from backend)
   useEffect(() => {
@@ -523,6 +608,14 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
 
   const handleInsertHr = () => {
     applyMarkdownFormat('\n\n---\n\n', '', '')
+  }
+
+  const handleInsertMath = (isBlock = false) => {
+    if (isBlock) {
+      applyMarkdownFormat('\n\n$$\n', '\n$$\n\n', '\\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}')
+    } else {
+      applyMarkdownFormat('$', '$', 'E = mc^2')
+    }
   }
 
   // Tab key & shortcut keydown handler for Markdown textarea
@@ -792,6 +885,7 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
             onOpenMediaModal={() => setIsMediaModalOpen(true)}
             onInsertTable={handleInsertTable}
             onInsertHr={handleInsertHr}
+            onInsertMath={handleInsertMath}
             onOpenCheatsheet={() => setIsCheatsheetOpen(true)}
           />
         )}
@@ -862,6 +956,7 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
                     <span>Live Rendered Preview</span>
                   </div>
                   <div
+                    ref={previewRef}
                     className="prose blog-content max-w-none"
                     dangerouslySetInnerHTML={{ __html: markdownToHtml(markdownContent) }}
                   />
