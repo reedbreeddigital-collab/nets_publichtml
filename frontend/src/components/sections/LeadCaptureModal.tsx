@@ -2,21 +2,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
 import { useJourneyStore, LocationData } from '@/store/useJourneyStore'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { geocodeAddress } from '@/config/api'
 import { useMapsLibrary } from '@vis.gl/react-google-maps'
 import { crmService } from '@/services/crmService'
 import { emailService } from '@/services/emailService'
-
-// Simple fallback distance calculation if Mapbox/Google fails
-function getFallbackDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 6371
-  const dLat = (lat2 - lat1) * (Math.PI / 180)
-  const dLon = (lon2 - lon1) * (Math.PI / 180) 
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * 
-            Math.sin(dLon/2) * Math.sin(dLon/2)
-  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)))
-}
+import { calculateFullRoute } from '@/services/routeService'
 
 export function LeadCaptureModal() {
   const navigate = useNavigate()
@@ -48,128 +37,20 @@ export function LeadCaptureModal() {
   if (!isLeadModalOpen) return null
 
   const calculateRouteAndPrice = async () => {
-    if (!pickup || !destination) return false
+    if (!pickup?.address || !destination?.address) return false
     
     setIsLoading(true)
     try {
-      let pLat = pickup.lat
-      let pLng = pickup.lng
-      if (!pLat || !pLng) {
-        const coords = await geocodeAddress(pickup.address)
-        if (coords) { pLat = coords.lat; pLng = coords.lng }
-      }
-
-      let dLat = destination.lat
-      let dLng = destination.lng
-      if (!dLat || !dLng) {
-        const coords = await geocodeAddress(destination.address)
-        if (coords) { dLat = coords.lat; dLng = coords.lng }
-      }
-
-      if (!pLat || !pLng || !dLat || !dLng) throw new Error('Missing coordinates')
-
-      let totalDistanceMeters = 0
-      let totalDurationSeconds = 0
-      let routePolyline: any = null
-
-      // Geocode any intermediate stops missing coordinates and update store
-      const resolvedWaypoints: { lat: number; lng: number }[] = []
-      const updatedStops = [...stops]
-      for (let i = 0; i < updatedStops.length; i++) {
-        const s = updatedStops[i]
-        if (!s || !s.address?.trim()) continue
-        let sLat = s.lat
-        let sLng = s.lng
-        if (!sLat || !sLng) {
-          const coords = await geocodeAddress(s.address)
-          if (coords) {
-            sLat = coords.lat
-            sLng = coords.lng
-            updatedStops[i] = { ...s, lat: sLat, lng: sLng }
-          }
-        }
-        if (sLat && sLng) {
-          resolvedWaypoints.push({ lat: sLat, lng: sLng })
-        }
-      }
-      useJourneyStore.setState({ stops: updatedStops })
-
-      if (routesLibrary) {
-        const directionsService = new routesLibrary.DirectionsService()
-        
-        const request: google.maps.DirectionsRequest = {
-          origin: { lat: pLat, lng: pLng },
-          destination: { lat: dLat, lng: dLng },
-          waypoints: resolvedWaypoints.map((pt) => ({ location: pt, stopover: true })),
-          travelMode: google.maps.TravelMode.DRIVING,
-        }
-
-        const result = await directionsService.route(request)
-        if (result.routes && result.routes.length > 0) {
-          const route = result.routes[0]
-          route.legs.forEach((leg: google.maps.DirectionsLeg) => {
-            totalDistanceMeters += leg.distance?.value || 0
-            totalDurationSeconds += leg.duration?.value || 0
-          })
-          routePolyline = route.overview_polyline
-        } else {
-          throw new Error('No route found')
-        }
-      } else {
-        throw new Error('Routes library not loaded')
-      }
-
-      const distanceKm = Math.max(1.5, Math.round((totalDistanceMeters / 1000) * 10) / 10)
-      const durationMins = Math.round(totalDurationSeconds / 60)
-
-      setRouteCalculations({
-        distanceKm,
-        distanceMeters: totalDistanceMeters,
-        durationMins,
-        durationSeconds: totalDurationSeconds,
-        durationText: `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`,
-        routePolyline: routePolyline,
-        journeyBounds: null,
-        journeyInsights: []
-      })
+      const result = await calculateFullRoute(pickup, destination, stops, routesLibrary)
+      setRouteCalculations(result)
+      await calculatePricing()
+      setIsLoading(false)
+      return true
     } catch (err) {
-      console.warn('Google Maps fallback', err)
-      let dist = 0
-      let curLat = pickup?.lat || 0
-      let curLng = pickup?.lng || 0
-      const validStops = stops.filter((s: LocationData) => s && s.lat && s.lng)
-      for (const s of validStops) {
-        if (curLat && curLng && s.lat && s.lng) {
-          dist += getFallbackDistanceKm(curLat, curLng, s.lat, s.lng)
-        }
-        curLat = s.lat || 0
-        curLng = s.lng || 0
-      }
-      if (curLat && curLng && destination?.lat && destination?.lng) {
-        dist += getFallbackDistanceKm(curLat, curLng, destination.lat, destination.lng)
-      } else if (pickup?.lat && pickup?.lng && destination?.lat && destination?.lng) {
-        dist = getFallbackDistanceKm(pickup.lat, pickup.lng, destination.lat, destination.lng)
-      }
-
-      const totalKm = Math.max(1.5, Math.round(dist * 10) / 10)
-      const totalMins = Math.round(totalKm * 2.5)
-
-      setRouteCalculations({
-        distanceKm: totalKm,
-        distanceMeters: totalKm * 1000,
-        durationMins: totalMins,
-        durationSeconds: totalMins * 60,
-        durationText: `${Math.floor(totalMins / 60)}h ${totalMins % 60}m`,
-        routePolyline: null,
-        journeyBounds: null,
-        journeyInsights: []
-      })
+      console.warn('Quote route calculation failed:', err)
+      setIsLoading(false)
+      return false
     }
-    
-    // Now trigger calculate pricing and wait for completion
-    await calculatePricing()
-    setIsLoading(false)
-    return true
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

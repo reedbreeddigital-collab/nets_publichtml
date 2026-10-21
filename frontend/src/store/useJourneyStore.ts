@@ -180,9 +180,49 @@ export const useJourneyStore = create<JourneyState>((set, get) => ({
   setIntent: (intent) => set({ intent }),
 
   pickup: null,
-  setPickup: (pickup) => set({ pickup }),
+  setPickup: (pickup) => set((state) => {
+    const isSame =
+      state.pickup?.address === pickup?.address &&
+      state.pickup?.lat === pickup?.lat &&
+      state.pickup?.lng === pickup?.lng
+    if (isSame) return { pickup }
+    return {
+      pickup,
+      distanceKm: 0,
+      distanceMeters: 0,
+      depotDistanceKm: 0,
+      billableDistanceKm: 0,
+      durationMins: 0,
+      durationSeconds: 0,
+      durationText: '',
+      routePolyline: null,
+      journeyBounds: null,
+      estimatedInvestment: null,
+      customerPricingView: null,
+    }
+  }),
   destination: null,
-  setDestination: (destination) => set({ destination }),
+  setDestination: (destination) => set((state) => {
+    const isSame =
+      state.destination?.address === destination?.address &&
+      state.destination?.lat === destination?.lat &&
+      state.destination?.lng === destination?.lng
+    if (isSame) return { destination }
+    return {
+      destination,
+      distanceKm: 0,
+      distanceMeters: 0,
+      depotDistanceKm: 0,
+      billableDistanceKm: 0,
+      durationMins: 0,
+      durationSeconds: 0,
+      durationText: '',
+      routePolyline: null,
+      journeyBounds: null,
+      estimatedInvestment: null,
+      customerPricingView: null,
+    }
+  }),
 
   distanceKm: 0,
   distanceMeters: 0,
@@ -194,7 +234,23 @@ export const useJourneyStore = create<JourneyState>((set, get) => ({
   routePolyline: null,
   journeyBounds: null,
   journeyInsights: [],
-  setRouteCalculations: (calc) => set({ ...calc }),
+  setRouteCalculations: (calc) => {
+    set({
+      distanceKm: calc.distanceKm,
+      distanceMeters: calc.distanceMeters,
+      depotDistanceKm: calc.depotDistanceKm ?? 0,
+      billableDistanceKm: calc.billableDistanceKm ?? calc.distanceKm,
+      durationMins: calc.durationMins,
+      durationSeconds: calc.durationSeconds,
+      durationText: calc.durationText,
+      routePolyline: calc.routePolyline ?? null,
+      journeyBounds: calc.journeyBounds ?? null,
+      journeyInsights: calc.journeyInsights ?? [],
+    })
+    if (get().currentStep >= 2) {
+      get().calculatePricing()
+    }
+  },
 
   passengers: null,
   setPassengers: (passengers) => set({ passengers }),
@@ -241,18 +297,18 @@ export const useJourneyStore = create<JourneyState>((set, get) => ({
   customRequest: '',
   setCustomRequest: (customRequest) => set({ customRequest }),
   stops: [],
-  addStop: (stop) => set((state) => ({ stops: [...state.stops, stop] })),
-  removeStop: (index) => set((state) => ({ stops: state.stops.filter((_, i) => i !== index) })),
+  addStop: (stop) => set((state) => ({ stops: [...state.stops, stop], distanceKm: 0, estimatedInvestment: null, customerPricingView: null })),
+  removeStop: (index) => set((state) => ({ stops: state.stops.filter((_, i) => i !== index), distanceKm: 0, estimatedInvestment: null, customerPricingView: null })),
   updateStop: (index, stop) => set((state) => {
     const newStops = [...state.stops]
     newStops[index] = stop
-    return { stops: newStops }
+    return { stops: newStops, distanceKm: 0, estimatedInvestment: null, customerPricingView: null }
   }),
   reorderStops: (startIndex, endIndex) => set((state) => {
     const result = Array.from(state.stops)
     const [removed] = result.splice(startIndex, 1)
     result.splice(endIndex, 0, removed)
-    return { stops: result }
+    return { stops: result, distanceKm: 0, estimatedInvestment: null, customerPricingView: null }
   }),
 
   recommendedVehicleId: null,

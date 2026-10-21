@@ -34,6 +34,7 @@ export function GooglePlacesAutocomplete({ value, onChange, onLocationSelect, pl
 
   const isTypingRef = useRef(false)
   const selectedPlaceRef = useRef<string | null>(value || null)
+  const selectionTokenRef = useRef(0)
 
   useEffect(() => {
     if (isTypingRef.current) {
@@ -92,15 +93,11 @@ export function GooglePlacesAutocomplete({ value, onChange, onLocationSelect, pl
     setSuggestions([])
     onChange(placeName)
 
-    // Immediately commit the full location address text
-    onLocationSelect({
-      address: placeName,
-      lat: 0,
-      lng: 0,
-      country: 'Nigeria'
-    })
+    const token = ++selectionTokenRef.current
 
     const applyLocation = (lat: number, lng: number, country: string) => {
+      if (token !== selectionTokenRef.current) return
+
       if (country.toLowerCase() !== 'nigeria') {
         useJourneyStore.getState().setInternationalModalOpen(true)
         setQuery('')
@@ -113,6 +110,7 @@ export function GooglePlacesAutocomplete({ value, onChange, onLocationSelect, pl
         address: placeName,
         lat,
         lng,
+        placeId: prediction.place_id,
         country
       })
     }
@@ -150,8 +148,11 @@ export function GooglePlacesAutocomplete({ value, onChange, onLocationSelect, pl
   const handleBlur = () => {
     // Delay slightly to let click on suggestion fire first
     setTimeout(() => {
-      if (query.trim().length >= 3 && query.trim() !== selectedPlaceRef.current) {
-        geocodeAddress(query.trim()).then(coords => {
+      const trimmed = (query || '').trim()
+      if (trimmed.length >= 3 && trimmed !== selectedPlaceRef.current) {
+        const token = ++selectionTokenRef.current
+        geocodeAddress(trimmed).then(coords => {
+          if (token !== selectionTokenRef.current) return
           if (coords) {
             if ((coords.country || 'Nigeria').toLowerCase() !== 'nigeria') {
               useJourneyStore.getState().setInternationalModalOpen(true)
@@ -159,9 +160,9 @@ export function GooglePlacesAutocomplete({ value, onChange, onLocationSelect, pl
               selectedPlaceRef.current = null
               return
             }
-            selectedPlaceRef.current = query.trim()
+            selectedPlaceRef.current = trimmed
             onLocationSelect({
-              address: query.trim(),
+              address: trimmed,
               lat: coords.lat,
               lng: coords.lng,
               country: coords.country || 'Nigeria'
