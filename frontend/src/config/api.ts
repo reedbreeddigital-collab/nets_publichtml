@@ -2,10 +2,14 @@
  * Centralized Environment & API Configuration
  */
 
-export const API_URL = 
-  import.meta.env.NEXT_PUBLIC_API_URL || 
-  import.meta.env.VITE_API_URL || 
-  'https://neweratransports-api.onrender.com/api/v1'
+export const BACKEND_URL = 
+  (import.meta.env.NEXT_PUBLIC_API_URL || 
+   import.meta.env.VITE_API_URL || 
+   'https://nets-publichtml.onrender.com')
+    .replace(/\/+$/, '')
+    .replace(/\/api\/v1$/, '')
+
+export const API_URL = `${BACKEND_URL}/api/v1`
 
 const getGoogleMapsApiKey = (): string => {
   return import.meta.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyCPSko-yh7VsQtpPyKzRmbXJWQOdcCJ8BE'

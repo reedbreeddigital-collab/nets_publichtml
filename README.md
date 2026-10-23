@@ -22,7 +22,7 @@ Official web application and executive administration portal for New Era Transpo
 - **Mapping & Routing**: Mapbox GL JS, `@vis.gl/react-mapbox`
 - **State Management**: Zustand
 - **PDF Generation**: jsPDF
-- **Backend API**: Go REST API (`https://neweratransports-api.onrender.com/api/v1`)
+- **Backend API**: Go REST API (`https://nets-publichtml.onrender.com/api/v1`)
 
 ## Local Development
 
