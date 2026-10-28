@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react'
-import { APIProvider, Map, Marker, AdvancedMarker, useMap } from '@vis.gl/react-google-maps'
+import { useMap, Map, AdvancedMarker } from '@vis.gl/react-google-maps'
+import { useEffect } from 'react'
 import { useJourneyStore } from '../../store/useJourneyStore'
 import { RouteIntelligence } from './RouteIntelligence'
-import { GOOGLE_MAPS_API_KEY } from '../../config/api'
 
 function MapBoundsController() {
   const map = useMap()

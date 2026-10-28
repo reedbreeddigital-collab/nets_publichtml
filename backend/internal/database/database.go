@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
@@ -18,8 +20,18 @@ var DB *gorm.DB
 
 func InitDB(cfg *config.Config) (*gorm.DB, error) {
 	dsn := cfg.GetFormattedDSN()
+	if dsn == "" {
+		return nil, fmt.Errorf("database DSN / DATABASE_URL is not configured")
+	}
 
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
+	var dialector gorm.Dialector
+	if strings.HasPrefix(dsn, "postgres://") || strings.HasPrefix(dsn, "postgresql://") || cfg.DBDriver == "postgres" || cfg.DBDriver == "postgresql" {
+		dialector = postgres.Open(dsn)
+	} else {
+		dialector = mysql.Open(dsn)
+	}
+
+	db, err := gorm.Open(dialector, &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
 
@@ -28,7 +40,7 @@ func InitDB(cfg *config.Config) (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	log.Println("✅ GORM Database connection established successfully.")
+	log.Println("✅ GORM PostgreSQL Database connection established successfully.")
 
 	DB = db
 
@@ -42,6 +54,12 @@ func InitDB(cfg *config.Config) (*gorm.DB, error) {
 }
 
 func AutoMigrate(db *gorm.DB) error {
+	// Skip expensive column-by-column introspection over remote cloud connections if tables already exist
+	if db.Migrator().HasTable(&models.Lead{}) && db.Migrator().HasTable(&models.BlogPost{}) {
+		log.Println("✅ PostgreSQL schema already initialized; skipping full AutoMigrate introspection.")
+		return nil
+	}
+
 	err := db.AutoMigrate(
 		&models.Lead{},
 		&models.Contact{},
@@ -62,7 +80,7 @@ func AutoMigrate(db *gorm.DB) error {
 		return fmt.Errorf("failed GORM auto migration: %w", err)
 	}
 
-	// Self-healing synchronization: align any existing won or converted leads in MySQL
+	// Self-healing synchronization: align any existing won or converted leads in PostgreSQL
 	db.Model(&models.Lead{}).
 		Where("(LOWER(crm_status) IN ('won & paid', 'won', 'converted') OR LOWER(status) IN ('converted', 'paid')) AND status != 'converted'").
 		Update("status", "converted")
@@ -73,21 +91,38 @@ func AutoMigrate(db *gorm.DB) error {
 
 	// Backfill timing for existing won leads without closed_at
 	db.Exec("UPDATE leads SET closed_at = updated_at WHERE (LOWER(crm_status) IN ('won & paid', 'won', 'converted') OR LOWER(status) IN ('converted', 'paid')) AND closed_at IS NULL")
-	db.Exec("UPDATE leads SET close_time_sec = GREATEST(0, TIMESTAMPDIFF(SECOND, created_at, closed_at)) WHERE closed_at IS NOT NULL AND (close_time_sec IS NULL OR close_time_sec = 0)")
+	if db.Dialector.Name() == "postgres" {
+		db.Exec("UPDATE leads SET close_time_sec = GREATEST(0, CAST(EXTRACT(EPOCH FROM (closed_at - created_at)) AS BIGINT)) WHERE closed_at IS NOT NULL AND (close_time_sec IS NULL OR close_time_sec = 0)")
+	} else {
+		db.Exec("UPDATE leads SET close_time_sec = GREATEST(0, TIMESTAMPDIFF(SECOND, created_at, closed_at)) WHERE closed_at IS NOT NULL AND (close_time_sec IS NULL OR close_time_sec = 0)")
+	}
 
 	// Backfill response time for existing contacted leads without first_contacted_at
 	db.Exec("UPDATE leads SET first_contacted_at = updated_at WHERE LOWER(crm_status) NOT IN ('new lead', 'invalid') AND first_contacted_at IS NULL")
-	db.Exec("UPDATE leads SET response_time_sec = GREATEST(0, TIMESTAMPDIFF(SECOND, created_at, first_contacted_at)) WHERE first_contacted_at IS NOT NULL AND (response_time_sec IS NULL OR response_time_sec = 0)")
+	if db.Dialector.Name() == "postgres" {
+		db.Exec("UPDATE leads SET response_time_sec = GREATEST(0, CAST(EXTRACT(EPOCH FROM (first_contacted_at - created_at)) AS BIGINT)) WHERE first_contacted_at IS NOT NULL AND (response_time_sec IS NULL OR response_time_sec = 0)")
+	} else {
+		db.Exec("UPDATE leads SET response_time_sec = GREATEST(0, TIMESTAMPDIFF(SECOND, created_at, first_contacted_at)) WHERE first_contacted_at IS NOT NULL AND (response_time_sec IS NULL OR response_time_sec = 0)")
+	}
 
 	log.Println("✅ GORM AutoMigrate completed successfully (Leads, Contacts, Vehicles, Bookings, Customers, Users tables verified).")
 	return nil
 }
 
 func SeedInitialData(db *gorm.DB) {
-	SeedVehicles(db)
-
 	var userCount int64
 	db.Model(&models.User{}).Count(&userCount)
+	if userCount > 0 {
+		var vehCount int64
+		db.Model(&models.Vehicle{}).Count(&vehCount)
+		if vehCount > 0 {
+			log.Println("✅ PostgreSQL database already seeded.")
+			return
+		}
+	}
+
+	SeedVehicles(db)
+
 	if userCount == 0 {
 		users := []models.User{
 			{ID: "usr-001", FullName: "Adebayo Ogundimu", Email: "admin@netsnigeria.com", Role: "admin", Status: "active", LastLogin: time.Now(), CreatedAt: time.Now()},
@@ -99,7 +134,7 @@ func SeedInitialData(db *gorm.DB) {
 		for _, u := range users {
 			db.Create(&u)
 		}
-		log.Println("👤 Seeded initial Admin & Staff Users into MySQL.")
+		log.Println("👤 Seeded initial Admin & Staff Users into PostgreSQL.")
 	}
 
 	var custCount int64
@@ -113,7 +148,7 @@ func SeedInitialData(db *gorm.DB) {
 		for _, c := range customers {
 			db.Create(&c)
 		}
-		log.Println("👥 Seeded initial corporate & individual customers into MySQL.")
+		log.Println("👥 Seeded initial corporate & individual customers into PostgreSQL.")
 	}
 
 	var bkCount int64
@@ -126,7 +161,7 @@ func SeedInitialData(db *gorm.DB) {
 		for _, b := range bookings {
 			db.Create(&b)
 		}
-		log.Println("📅 Seeded initial bookings into MySQL.")
+		log.Println("📅 Seeded initial bookings into PostgreSQL.")
 	}
 
 	SeedBlog(db)
@@ -209,7 +244,7 @@ func SeedVehicles(db *gorm.DB) {
 	db.Model(&models.Vehicle{}).Where("image_url LIKE ?", "%suv.jpg").Update("image_url", "/vehicles/suv.png")
 	db.Model(&models.Vehicle{}).Where("image_url LIKE ?", "%/images/%").Update("image_url", gorm.Expr("REPLACE(image_url, '/images/vehicles/', '/vehicles/')"))
 
-	log.Println("🚗 Verified & synchronized vehicle catalog in MySQL database.")
+	log.Println("🚗 Verified & synchronized vehicle catalog in PostgreSQL database.")
 }
 
 func mustJSON(v interface{}) string {
@@ -230,7 +265,7 @@ func SeedBlog(db *gorm.DB) {
 		for _, c := range cats {
 			db.Create(&c)
 		}
-		log.Println("🏷️ Seeded initial Blog Categories into MySQL.")
+		log.Println("🏷️ Seeded initial Blog Categories into PostgreSQL.")
 	}
 
 	var tagCount int64
@@ -246,7 +281,7 @@ func SeedBlog(db *gorm.DB) {
 		for _, t := range tags {
 			db.Create(&t)
 		}
-		log.Println("🏷️ Seeded initial Blog Tags into MySQL.")
+		log.Println("🏷️ Seeded initial Blog Tags into PostgreSQL.")
 	}
 
 	var postCount int64
@@ -311,6 +346,6 @@ func SeedBlog(db *gorm.DB) {
 		for _, p := range posts {
 			db.Create(&p)
 		}
-		log.Println("📝 Seeded initial Blog Articles into MySQL.")
+		log.Println("📝 Seeded initial Blog Articles into PostgreSQL.")
 	}
 }

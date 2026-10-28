@@ -19,7 +19,7 @@ type Lead struct {
 	CrmStatus              string    `json:"crmStatus" gorm:"type:varchar(64);default:'New Lead'"`
 	AssignedTo             string    `json:"assignedTo" gorm:"type:varchar(64)"`
 	Notes                  string     `json:"notes" gorm:"type:text"`
-	PayloadJSON            string     `json:"-" gorm:"type:longtext"`
+	PayloadJSON            string     `json:"-" gorm:"type:text"`
 	Payload                any        `json:"payload,omitempty" gorm:"-"`
 	FirstContactedAt       *time.Time `json:"firstContactedAt,omitempty" gorm:"index"`
 	FirstContactedBy       string     `json:"firstContactedBy,omitempty" gorm:"type:varchar(64)"`

@@ -200,7 +200,7 @@ export class AdminService {
   }
 
   /**
-   * Fetch all leads/quotes directly from the remote MySQL database.
+   * Fetch all leads/quotes directly from the remote PostgreSQL database.
    */
   public async getLeads(): Promise<AdminLead[]> {
     let remoteLeads: AdminLead[] = []

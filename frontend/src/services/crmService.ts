@@ -12,7 +12,7 @@ export interface CRMSubmissionResponse {
 
 class CRMService {
   /**
-   * Submit a new lead/booking directly to the remote MySQL database.
+   * Submit a new lead/booking directly to the remote PostgreSQL database.
    */
   public async submitLead(payload: any): Promise<CRMSubmissionResponse> {
     const leadRef = payload.leadMetadata?.quoteReferenceNumber || `NETS-LD-${Date.now().toString().slice(-6)}`

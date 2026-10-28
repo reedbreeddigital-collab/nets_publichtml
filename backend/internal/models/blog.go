@@ -23,7 +23,7 @@ type BlogPost struct {
 	Title       string        `json:"title" gorm:"type:varchar(255);not null"`
 	Slug        string        `json:"slug" gorm:"uniqueIndex;type:varchar(255);not null"`
 	Excerpt     string        `json:"excerpt" gorm:"type:text"`
-	Content     string        `json:"content" gorm:"type:longtext"`
+	Content     string        `json:"content" gorm:"type:text"`
 	CoverImage  *string       `json:"cover_image" gorm:"type:varchar(512)"`
 	AuthorID    string        `json:"author_id" gorm:"type:varchar(64);default:'admin'"`
 	Author      string        `json:"author" gorm:"type:varchar(255);default:'NETS Team'"`

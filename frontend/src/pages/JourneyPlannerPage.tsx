@@ -7,7 +7,7 @@ import { Step3Review } from '../components/planner/new_steps/Step3Review'
 import { Step10Success } from '../components/planner/steps/Step10Success'
 import { AnimatePresence, motion } from 'framer-motion'
 import { usePaystackPayment } from 'react-paystack'
-import { PAYSTACK_PUBLIC_KEY, API_URL } from '../config/api'
+import { PAYSTACK_PUBLIC_KEY, API_URL, subscribeBackendServiceConfig } from '../config/api'
 import { crmService } from '../services/crmService'
 import { emailService } from '../services/emailService'
 import { PaymentNoticeModal } from '../components/payment/PaymentNoticeModal'
@@ -16,6 +16,15 @@ export function JourneyPlannerPage() {
   const state = useJourneyStore()
   const { currentStep, nextStep, prevStep } = state
   const [showPaymentNotice, setShowPaymentNotice] = useState(false)
+  const [paystackKey, setPaystackKey] = useState(PAYSTACK_PUBLIC_KEY)
+
+  useEffect(() => {
+    return subscribeBackendServiceConfig(cfg => {
+      if (cfg.paystackPublicKey) {
+        setPaystackKey(cfg.paystackPublicKey)
+      }
+    })
+  }, [])
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -89,7 +98,7 @@ export function JourneyPlannerPage() {
     reference: new Date().getTime().toString(),
     email: state.customerDetails?.email || 'customer@nets.com.ng',
     amount: (state.estimatedInvestment?.estimatedInvestment || 0) * 100, // Amount is in Kobo
-    publicKey: PAYSTACK_PUBLIC_KEY,
+    publicKey: paystackKey || PAYSTACK_PUBLIC_KEY,
   }
 
   const handleSuccess = async (reference: any) => {

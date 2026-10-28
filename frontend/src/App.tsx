@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigation } from './components/layout/Navigation'
 import { Footer } from './components/layout/Footer'
 import { HomePage } from './pages/HomePage'
@@ -29,7 +29,7 @@ import { InternationalModal } from './components/sections/InternationalModal'
 import { CookieConsentBanner } from './components/layout/CookieConsentBanner'
 import { AdminRouter } from './admin/AdminRouter'
 import { APIProvider } from '@vis.gl/react-google-maps'
-import { GOOGLE_MAPS_API_KEY } from './config/api'
+import { GOOGLE_MAPS_API_KEY, subscribeBackendServiceConfig } from './config/api'
 
 function ScrollToTopAndHash() {
   const { pathname, hash } = useLocation()
@@ -143,8 +143,18 @@ function AppContent() {
 }
 
 function App() {
+  const [mapsKey, setMapsKey] = useState(GOOGLE_MAPS_API_KEY)
+
+  useEffect(() => {
+    return subscribeBackendServiceConfig(cfg => {
+      if (cfg.googleMapsApiKey) {
+        setMapsKey(cfg.googleMapsApiKey)
+      }
+    })
+  }, [])
+
   return (
-    <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
+    <APIProvider apiKey={mapsKey}>
       <BrowserRouter>
         <AppContent />
       </BrowserRouter>

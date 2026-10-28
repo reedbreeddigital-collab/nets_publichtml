@@ -31,3 +31,5 @@ pnpm-debug.log*
 # Backend ignores
 backend/server
 backend/tmp/
+*.sql
+*.sql.gz

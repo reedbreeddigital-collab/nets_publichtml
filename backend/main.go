@@ -17,7 +17,7 @@ func main() {
 
 	log.Printf("🚀 Starting %s in [%s] mode...", cfg.AppName, cfg.Env)
 
-	// Initialize MySQL / DB Connection
+	// Initialize PostgreSQL / DB Connection
 	_, err := database.InitDB(cfg)
 	if err != nil {
 		log.Printf("⚠️ Database warning: %v", err)

@@ -1,4 +1,4 @@
-import { API_URL, CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } from '../config/api'
+import { API_URL } from '../config/api'
 
 export interface CloudinaryResource {
   asset_id?: string
@@ -26,24 +26,12 @@ export interface UploadResult {
   created_at?: string
 }
 
-// Browser SHA-1 helper for direct client-side fallback signing
-async function sha1(str: string): Promise<string> {
-  const enc = new TextEncoder()
-  const data = enc.encode(str)
-  const hashBuf = await crypto.subtle.digest('SHA-1', data)
-  const hashArr = Array.from(new Uint8Array(hashBuf))
-  return hashArr.map(b => b.toString(16).padStart(2, '0')).join('')
-}
-
 class CloudinaryService {
-  private cloudName = CLOUDINARY_CLOUD_NAME
-  private apiKey = CLOUDINARY_API_KEY
-  private apiSecret = CLOUDINARY_API_SECRET
   private defaultFolder = 'nets_blog'
+  private cloudName = ''
 
   /**
-   * Upload an image to Cloudinary.
-   * Tries Go backend relay first; falls back to direct browser signed upload if backend is unreachable.
+   * Upload an image to Cloudinary via the Go backend relay (which holds CLOUDINARY_URL in backend/.env).
    */
   async uploadImage(
     file: File | Blob | string,
@@ -51,93 +39,52 @@ class CloudinaryService {
   ): Promise<UploadResult> {
     const folder = options.folder || this.defaultFolder
 
-    // 1. Attempt Backend Upload Endpoint
-    try {
-      const formData = new FormData()
-      if (typeof file === 'string') {
-        formData.append('file', file)
-      } else {
-        formData.append('file', file, (file as File).name || 'upload.jpg')
-      }
-      formData.append('folder', folder)
-
-      const res = await fetch(`${API_URL}/cms/blog/upload-image`, {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (res.ok) {
-        const json = await res.json()
-        if (json.data && (json.data.secure_url || json.data.url)) {
-          return {
-            url: json.data.url || json.data.secure_url,
-            secure_url: json.data.secure_url || json.data.url,
-            public_id: json.data.public_id,
-            format: json.data.format || 'jpg',
-            width: json.data.width || 0,
-            height: json.data.height || 0,
-            bytes: json.data.bytes || 0,
-            created_at: json.data.created_at || new Date().toISOString(),
-          }
-        }
-      }
-      console.warn('Backend upload returned non-OK or empty, trying direct Cloudinary signed upload...')
-    } catch (err) {
-      console.warn('Backend upload failed, attempting direct Cloudinary signed fallback:', err)
-    }
-
-    // 2. Direct Signed Cloudinary Upload Fallback
-    const timestamp = Math.floor(Date.now() / 1000).toString()
-    const signString = `folder=${folder}&timestamp=${timestamp}${this.apiSecret}`
-    const signature = await sha1(signString)
-
-    const directFormData = new FormData()
+    const formData = new FormData()
     if (typeof file === 'string') {
-      directFormData.append('file', file)
+      formData.append('file', file)
     } else {
-      directFormData.append('file', file, (file as File).name || 'upload.jpg')
+      formData.append('file', file, (file as File).name || 'upload.jpg')
     }
-    directFormData.append('api_key', this.apiKey)
-    directFormData.append('timestamp', timestamp)
-    directFormData.append('folder', folder)
-    directFormData.append('signature', signature)
+    formData.append('folder', folder)
 
-    const cldRes = await fetch(
-      `https://api.cloudinary.com/v1_1/${this.cloudName}/image/upload`,
-      {
-        method: 'POST',
-        body: directFormData,
+    const res = await fetch(`${API_URL}/cms/blog/upload-image`, {
+      method: 'POST',
+      body: formData,
+    })
+
+    if (!res.ok) {
+      const errText = await res.text()
+      throw new Error(`Cloudinary upload failed via backend: ${errText}`)
+    }
+
+    const json = await res.json()
+    if (json.data && (json.data.secure_url || json.data.url)) {
+      return {
+        url: json.data.url || json.data.secure_url,
+        secure_url: json.data.secure_url || json.data.url,
+        public_id: json.data.public_id,
+        format: json.data.format || 'jpg',
+        width: json.data.width || 0,
+        height: json.data.height || 0,
+        bytes: json.data.bytes || 0,
+        created_at: json.data.created_at || new Date().toISOString(),
       }
-    )
-
-    if (!cldRes.ok) {
-      const errText = await cldRes.text()
-      throw new Error(`Cloudinary upload failed: ${errText}`)
     }
 
-    const cldJson = await cldRes.json()
-    return {
-      url: cldJson.url || cldJson.secure_url,
-      secure_url: cldJson.secure_url || cldJson.url,
-      public_id: cldJson.public_id,
-      format: cldJson.format,
-      width: cldJson.width,
-      height: cldJson.height,
-      bytes: cldJson.bytes,
-      created_at: cldJson.created_at,
-    }
+    throw new Error('Invalid upload response from backend')
   }
 
   /**
-   * Fetch recent images from Cloudinary.
+   * Fetch recent images from Cloudinary via the Go backend API.
    */
   async getImages(): Promise<CloudinaryResource[]> {
     try {
       const res = await fetch(`${API_URL}/cms/blog/images`)
       if (res.ok) {
         const json = await res.json()
-        if (json.resources && Array.isArray(json.resources)) {
-          return json.resources.map((r: any) => ({
+        const resources = json.data?.resources || json.resources
+        if (Array.isArray(resources)) {
+          return resources.map((r: any) => ({
             asset_id: r.asset_id,
             public_id: r.public_id,
             format: r.format,
@@ -158,36 +105,16 @@ class CloudinaryService {
   }
 
   /**
-   * Delete an image from Cloudinary by public ID.
+   * Delete an image from Cloudinary by public ID via the Go backend API.
    */
   async deleteImage(publicId: string): Promise<boolean> {
     try {
       const res = await fetch(`${API_URL}/cms/blog/images?public_id=${encodeURIComponent(publicId)}`, {
         method: 'DELETE',
       })
-      if (res.ok) return true
-    } catch (err) {
-      console.warn('Backend delete failed, trying direct signed delete:', err)
-    }
-
-    try {
-      const timestamp = Math.floor(Date.now() / 1000).toString()
-      const signString = `public_id=${publicId}&timestamp=${timestamp}${this.apiSecret}`
-      const signature = await sha1(signString)
-
-      const formData = new FormData()
-      formData.append('public_id', publicId)
-      formData.append('api_key', this.apiKey)
-      formData.append('timestamp', timestamp)
-      formData.append('signature', signature)
-
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${this.cloudName}/image/destroy`, {
-        method: 'POST',
-        body: formData,
-      })
       return res.ok
     } catch (err) {
-      console.error('Failed to delete Cloudinary image:', err)
+      console.error('Failed to delete Cloudinary image via backend:', err)
       return false
     }
   }
@@ -216,7 +143,8 @@ class CloudinaryService {
       return urlOrPublicId.replace('/upload/', `/upload/${transformStr}/`)
     }
 
-    // If it's a public_id
+    if (!this.cloudName) return urlOrPublicId
+
     const parts = ['f_auto', options.quality ? `q_${options.quality}` : 'q_auto']
     if (options.width) parts.push(`w_${options.width}`)
     if (options.height) parts.push(`h_${options.height}`)

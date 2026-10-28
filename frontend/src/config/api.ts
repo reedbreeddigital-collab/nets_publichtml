@@ -11,16 +11,9 @@ export const BACKEND_URL =
 
 export const API_URL = `${BACKEND_URL}/api/v1`
 
-const getGoogleMapsApiKey = (): string => {
-  return import.meta.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyCPSko-yh7VsQtpPyKzRmbXJWQOdcCJ8BE'
-}
+export let GOOGLE_MAPS_API_KEY = ''
 
-export const GOOGLE_MAPS_API_KEY = getGoogleMapsApiKey()
-
-export const PAYSTACK_PUBLIC_KEY = 
-  import.meta.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || 
-  import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 
-  'pk_live_744369c487505db8ecdde2f521781cfce2993ca2'
+export let PAYSTACK_PUBLIC_KEY = ''
 
 export const EMAIL_PROXY_URL = 
   import.meta.env.VITE_EMAIL_PROXY_URL || 
@@ -30,24 +23,74 @@ export const EMAIL_PROXY_KEY =
   import.meta.env.VITE_EMAIL_PROXY_KEY || 
   'ep_live_6f3b92d8a4c1e7f50b4a1d9c2e8f7a3b'
 
-export const CLOUDINARY_CLOUD_NAME = 
-  import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 
-  'wnmabxiy'
+export interface BackendServiceConfig {
+  databaseDriver: string
+  databaseStatus: string
+  databaseUrl: string
+  cloudinaryCloud: string
+  googleMapsApiKey: string
+  paystackPublicKey: string
+  environment: string
+}
 
-export const CLOUDINARY_API_KEY = 
-  import.meta.env.VITE_CLOUDINARY_API_KEY || 
-  '768523141117821'
+let cachedServiceConfig: BackendServiceConfig | null = null
+const configListeners = new Set<(cfg: BackendServiceConfig) => void>()
 
-export const CLOUDINARY_API_SECRET = 
-  import.meta.env.VITE_CLOUDINARY_API_SECRET || 
-  'KeVQI7I7tuGlCxUIdWC9M6RdWjg'
+export function subscribeBackendServiceConfig(listener: (cfg: BackendServiceConfig) => void): () => void {
+  if (cachedServiceConfig) {
+    listener(cachedServiceConfig)
+  }
+  configListeners.add(listener)
+  return () => {
+    configListeners.delete(listener)
+  }
+}
 
-export const CLOUDINARY_URL = 
-  import.meta.env.VITE_CLOUDINARY_URL || 
-  'cloudinary://768523141117821:KeVQI7I7tuGlCxUIdWC9M6RdWjg@wnmabxiy'
+/**
+ * Fetch active database, Cloudinary, Google Maps & Paystack configuration directly from the backend service
+ * without hardcoding credentials in the frontend.
+ */
+export async function fetchBackendServiceConfig(): Promise<BackendServiceConfig | null> {
+  if (cachedServiceConfig) {
+    return cachedServiceConfig
+  }
+  try {
+    const res = await fetch(`${API_URL}/health`)
+    if (res.ok) {
+      const json = await res.json()
+      const data = json.data || json
+      if (data.googleMapsApiKey) {
+        GOOGLE_MAPS_API_KEY = data.googleMapsApiKey
+      }
+      if (data.paystackPublicKey) {
+        PAYSTACK_PUBLIC_KEY = data.paystackPublicKey
+      }
+      cachedServiceConfig = {
+        databaseDriver: data.databaseDriver || 'postgres',
+        databaseStatus: data.databaseStatus || 'connected',
+        databaseUrl: data.databaseUrl || '',
+        cloudinaryCloud: data.cloudinaryCloud || '',
+        googleMapsApiKey: data.googleMapsApiKey || '',
+        paystackPublicKey: data.paystackPublicKey || '',
+        environment: data.environment || 'production',
+      }
+      configListeners.forEach(fn => fn(cachedServiceConfig!))
+      return cachedServiceConfig
+    }
+  } catch (err) {
+    console.warn('Could not fetch service configuration from backend:', err)
+  }
+  return null
+}
+
+// Kick off initial background fetch of backend service configuration on load
+fetchBackendServiceConfig()
 
 export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number, country?: string } | null> {
   try {
+    if (!GOOGLE_MAPS_API_KEY) {
+      await fetchBackendServiceConfig()
+    }
     const query = encodeURIComponent(address)
     const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${query}&key=${GOOGLE_MAPS_API_KEY}&components=country:NG|country:BJ|country:NE|country:TD|country:CM`
     const res = await fetch(url)

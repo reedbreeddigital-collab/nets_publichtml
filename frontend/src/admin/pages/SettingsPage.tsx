@@ -4,16 +4,21 @@
 import { useState, useEffect } from 'react'
 import { Save, Eye, EyeOff } from 'lucide-react'
 import { useAdminStore } from '../store/useAdminStore'
+import { fetchBackendServiceConfig, type BackendServiceConfig } from '../../config/api'
 
 export function SettingsPage() {
   const { settings, updateSettings, fetchSettings } = useAdminStore()
   const [form, setForm] = useState({ ...settings })
   const [saved, setSaved] = useState(false)
   const [showKey, setShowKey] = useState(false)
+  const [backendConfig, setBackendConfig] = useState<BackendServiceConfig | null>(null)
 
   useEffect(() => {
     fetchSettings().then(() => {
       setForm(useAdminStore.getState().settings)
+    })
+    fetchBackendServiceConfig().then(cfg => {
+      if (cfg) setBackendConfig(cfg)
     })
   }, [])
 
@@ -148,16 +153,19 @@ export function SettingsPage() {
           </Section>
 
           <div className="admin-card">
-            <div className="admin-card-title">Platform Information</div>
+            <div className="admin-card-title">Platform & Database Information</div>
             {[
               ['Version', 'Phase 8 — Enterprise Operations Control Center'],
               ['Build', '2026-07.08.0'],
               ['Pricing Engine', `v${form.pricingEngineVersion}`],
-              ['Environment', 'Development / Mock Data'],
+              ['Environment', backendConfig?.environment || 'Production'],
+              ['Database Engine', backendConfig ? `${backendConfig.databaseDriver.toUpperCase()} (${backendConfig.databaseStatus})` : 'PostgreSQL (Neon)'],
+              ['Database URL (from Backend)', backendConfig?.databaseUrl || 'Connected via Backend .env'],
+              ['Cloudinary Cloud (from Backend)', backendConfig?.cloudinaryCloud || 'Configured in Backend .env'],
             ].map(([l, v]) => (
               <div key={l as string} className="admin-detail-row">
                 <span className="admin-detail-label">{l}</span>
-                <span className="admin-detail-value" style={{ fontSize: 12 }}>{v}</span>
+                <span className="admin-detail-value" style={{ fontSize: 12, wordBreak: 'break-all' }}>{v}</span>
               </div>
             ))}
           </div>

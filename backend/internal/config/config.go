@@ -18,42 +18,68 @@ type Config struct {
 	DBUser             string
 	DBPassword         string
 	DBDSN              string
+	DatabaseURL        string
 	DBSource           string
 	CloudinaryURL      string
 	CloudinaryCloud    string
 	CloudinaryKey      string
 	CloudinarySecret   string
+	GoogleMapsAPIKey   string
+	PaystackPublicKey  string
+	PaystackSecretKey  string
 }
 
 func LoadConfig() *Config {
 	// Try loading .env file manually if present
 	loadDotEnv(".env")
+	loadDotEnv("../.env")
+	loadDotEnv("backend/.env")
 
 	port := getEnv("PORT", "8080")
 	if !strings.HasPrefix(port, ":") && port != "" {
 		port = ":" + port
 	}
 
-	cloudinaryURL := getEnv("CLOUDINARY_URL", "cloudinary://768523141117821:KeVQI7I7tuGlCxUIdWC9M6RdWjg@wnmabxiy")
+	cloudinaryURL := getEnv("CLOUDINARY_URL", "")
 	cloud, key, secret := parseCloudinaryURL(cloudinaryURL)
+	if cloud == "" {
+		cloud = getEnv("CLOUDINARY_CLOUD_NAME", "")
+	}
+	if key == "" {
+		key = getEnv("CLOUDINARY_API_KEY", "")
+	}
+	if secret == "" {
+		secret = getEnv("CLOUDINARY_API_SECRET", "")
+	}
+
+	databaseURL := getEnv("DATABASE_URL", "")
+	dbDSN := getEnv("DB_DSN", databaseURL)
+	dbDriver := getEnv("DB_DRIVER", "postgres")
+	if dbDriver == "" {
+		dbDriver = "postgres"
+	}
 
 	return &Config{
 		Port:               port,
 		Env:                getEnv("ENV", getEnv("APP_ENV", "development")),
 		AppName:            getEnv("APP_NAME", "NETS Logistics REST API"),
 		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", "*"),
-		DBDriver:           getEnv("DB_DRIVER", "mysql"),
-		DBHost:             getEnv("DB_HOST", "srv1427.hstgr.io"),
-		DBPort:             getEnv("DB_PORT", "3306"),
-		DBName:             getEnv("DB_NAME", "u859677653_nets_web_db"),
-		DBUser:             getEnv("DB_USER", "u859677653_nets_web"),
-		DBPassword:         getEnv("DB_PASSWORD", "*Reedb4b4"),
-		DBDSN:              getEnv("DB_DSN", ""),
+		DBDriver:           dbDriver,
+		DBHost:             getEnv("DB_HOST", ""),
+		DBPort:             getEnv("DB_PORT", "5432"),
+		DBName:             getEnv("DB_NAME", "neondb"),
+		DBUser:             getEnv("DB_USER", ""),
+		DBPassword:         getEnv("DB_PASSWORD", ""),
+		DBDSN:              dbDSN,
+		DatabaseURL:        databaseURL,
 		DBSource:           getEnv("DB_SOURCE", "./storage/database.db"),
 		CloudinaryURL:      cloudinaryURL,
 		CloudinaryCloud:    cloud,
 		CloudinaryKey:      key,
 		CloudinarySecret:   secret,
+		GoogleMapsAPIKey:   getEnv("GOOGLE_MAPS_API_KEY", getEnv("VITE_GOOGLE_MAPS_API_KEY", "")),
+		PaystackPublicKey:  getEnv("PAYSTACK_PUBLIC_KEY", getEnv("VITE_PAYSTACK_PUBLIC_KEY", "")),
+		PaystackSecretKey:  getEnv("PAYSTACK_SECRET_KEY", ""),
 	}
 }
 
@@ -74,8 +100,17 @@ func parseCloudinaryURL(rawURL string) (cloud, key, secret string) {
 }
 
 func (c *Config) GetFormattedDSN() string {
+	if c.DatabaseURL != "" {
+		return c.DatabaseURL
+	}
 	if c.DBDSN != "" {
 		return c.DBDSN
+	}
+	if c.DBDriver == "postgres" || c.DBDriver == "postgresql" {
+		if c.DBHost != "" {
+			return "host=" + c.DBHost + " user=" + c.DBUser + " password=" + c.DBPassword + " dbname=" + c.DBName + " port=" + c.DBPort + " sslmode=require"
+		}
+		return ""
 	}
 	if c.DBDriver == "mysql" {
 		return c.DBUser + ":" + c.DBPassword + "@tcp(" + c.DBHost + ":" + c.DBPort + ")/" + c.DBName + "?charset=utf8mb4&parseTime=True&loc=Local"
