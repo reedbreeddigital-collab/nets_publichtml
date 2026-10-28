@@ -8,6 +8,7 @@ dist-ssr/
 .env
 .env.*
 !.env.local
+!.env.example
 *.env
 
 # Logs & Debug
@@ -27,5 +28,6 @@ pnpm-debug.log*
 *.njsproj
 *.sln
 
-# Backend
-backend/
+# Backend ignores
+backend/server
+backend/tmp/
