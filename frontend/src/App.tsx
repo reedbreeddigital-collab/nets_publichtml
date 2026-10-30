@@ -142,6 +142,8 @@ function AppContent() {
   )
 }
 
+const mapLibraries: ('places' | 'marker' | 'geometry')[] = ['places', 'marker', 'geometry']
+
 function App() {
   const [mapsKey, setMapsKey] = useState(GOOGLE_MAPS_API_KEY)
 
@@ -154,7 +156,7 @@ function App() {
   }, [])
 
   return (
-    <APIProvider apiKey={mapsKey}>
+    <APIProvider apiKey={mapsKey || GOOGLE_MAPS_API_KEY} libraries={mapLibraries}>
       <BrowserRouter>
         <AppContent />
       </BrowserRouter>

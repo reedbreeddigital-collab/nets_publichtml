@@ -11,9 +11,15 @@ export const BACKEND_URL =
 
 export const API_URL = `${BACKEND_URL}/api/v1`
 
-export let GOOGLE_MAPS_API_KEY = ''
+export let GOOGLE_MAPS_API_KEY = 
+  import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 
+  import.meta.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 
+  'AIzaSyCPSko-yh7VsQtpPyKzRmbXJWQOdcCJ8BE'
 
-export let PAYSTACK_PUBLIC_KEY = ''
+export let PAYSTACK_PUBLIC_KEY = 
+  import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 
+  import.meta.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || 
+  'pk_live_744369c487505db8ecdde2f521781cfce2993ca2'
 
 export const EMAIL_PROXY_URL = 
   import.meta.env.VITE_EMAIL_PROXY_URL || 
