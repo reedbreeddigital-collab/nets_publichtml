@@ -36,21 +36,22 @@ This document contains the authenticated staff and administrative accounts confi
 
 ## 🛡️ Role Permissions Matrix
 
-| Platform Module | Admin / Super-Admin | Staff |
-| :--- | :---: | :---: |
-| **Executive Dashboard** | ✅ Allowed | ✅ Allowed |
-| **CRM & Lead Pipeline** | ✅ Allowed | ✅ Allowed |
-| **Quote Management & PDF Export** | ✅ Allowed | ✅ Allowed |
-| **Booking & Trip Management** | ✅ Allowed | ✅ Allowed |
-| **Customer Profiles** | ✅ Allowed | ✅ Allowed |
-| **Blog CMS & Editorial Editor** | ✅ Allowed | ✅ Allowed |
-| **Fleet Management (Vehicles)** | ✅ Allowed | ❌ Restricted |
-| **Pricing Engine Config** | ✅ Allowed | ❌ Restricted |
-| **Media Library** | ✅ Allowed | ❌ Restricted |
-| **Promotions & Campaigns** | ✅ Allowed | ❌ Restricted |
-| **Analytics & Business Intelligence** | ✅ Allowed | ❌ Restricted |
-| **User & Staff Account Management** | ✅ Allowed | ❌ Restricted |
-| **System Settings & Activity Log** | ✅ Allowed | ❌ Restricted |
+| Platform Module | Admin / Super-Admin | Staff | Sales Closer |
+| :--- | :---: | :---: | :---: |
+| **Executive Dashboard** | ✅ Allowed | ✅ Allowed | ❌ Restricted |
+| **CRM & Lead Pipeline** | ✅ Allowed | ✅ Allowed | ✅ Allowed |
+| **Distance Calculator** | ✅ Allowed | ✅ Allowed | ✅ Allowed |
+| **Quote Management & PDF Export** | ✅ Allowed | ✅ Allowed | ❌ Restricted |
+| **Booking & Trip Management** | ✅ Allowed | ✅ Allowed | ❌ Restricted |
+| **Customer Profiles** | ✅ Allowed | ✅ Allowed | ❌ Restricted |
+| **Blog CMS & Editorial Editor** | ✅ Allowed | ✅ Allowed | ❌ Restricted |
+| **Fleet Management (Vehicles)** | ✅ Allowed | ❌ Restricted | ❌ Restricted |
+| **Pricing Engine Config** | ✅ Allowed | ❌ Restricted | ❌ Restricted |
+| **Media Library** | ✅ Allowed | ❌ Restricted | ❌ Restricted |
+| **Promotions & Campaigns** | ✅ Allowed | ❌ Restricted | ❌ Restricted |
+| **Analytics & Business Intelligence** | ✅ Allowed | ❌ Restricted | ❌ Restricted |
+| **User & Staff Account Management** | ✅ Allowed | ❌ Restricted | ❌ Restricted |
+| **System Settings & Activity Log** | ✅ Allowed | ❌ Restricted | ❌ Restricted |
 
 ---
 

@@ -18,6 +18,7 @@ import { UsersPage } from './pages/UsersPage'
 import { ActivityLogPage } from './pages/ActivityLogPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { ProfilePage } from './pages/ProfilePage'
+import { DistanceCalculatorPage } from './pages/DistanceCalculatorPage'
 import { AdminBlogCMSPage } from './pages/blog/AdminBlogCMSPage'
 import { AdminBlogCreatePage } from './pages/blog/AdminBlogCreatePage'
 
@@ -31,6 +32,8 @@ export function AdminRouter() {
         <Route path="quotes" element={<QuotesPage />} />
         <Route path="bookings" element={<BookingsPage />} />
         <Route path="customers" element={<CustomersPage />} />
+        <Route path="calculator" element={<DistanceCalculatorPage />} />
+        <Route path="distance-calculator" element={<DistanceCalculatorPage />} />
         <Route path="fleet" element={<FleetManagementPage />} />
         <Route path="pricing" element={<PricingAdminPage />} />
         <Route path="media" element={<MediaPage />} />

@@ -35,6 +35,7 @@ const permissionMatrix: { module: string; admin: boolean; staff: boolean; sales_
   { module: 'Activity Log', admin: true, staff: false, sales_closer: false },
   { module: 'Settings', admin: true, staff: false, sales_closer: false },
   { module: 'CRM Leads', admin: true, staff: true, sales_closer: true },
+  { module: 'Distance Calculator', admin: true, staff: true, sales_closer: true },
 ]
 
 export function UsersPage() {

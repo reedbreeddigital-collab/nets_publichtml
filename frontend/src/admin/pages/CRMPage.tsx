@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Search, Users, DollarSign, Filter, CheckCircle2, Clock, Phone, Mail, MapPin, Calendar, FileText, ArrowRight, X, RefreshCw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Check, ExternalLink, Truck, CreditCard, ShieldCheck, Zap } from 'lucide-react'
+import { Search, Users, DollarSign, Filter, CheckCircle2, Clock, Phone, Mail, MapPin, Calendar, FileText, ArrowRight, X, RefreshCw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Check, ExternalLink, Truck, CreditCard, ShieldCheck, Zap, Calculator } from 'lucide-react'
 import { adminService, type AdminLead, formatDuration } from '../services/adminService'
 import { useAdminStore } from '../store/useAdminStore'
+import { DistanceCalculatorWidget } from '../components/DistanceCalculatorWidget'
 
 const fmtCurrency = (n: number) => `₦${Math.round(n).toLocaleString('en-NG')}`
 const fmtDate = (iso: string) => {
@@ -76,6 +77,8 @@ export function CRMPage() {
   const [noteSaved, setNoteSaved] = useState(false)
   const [savingNote, setSavingNote] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
+  const [showDistanceModal, setShowDistanceModal] = useState(false)
+  const [calcInitial, setCalcInitial] = useState<{ origin: string; destination: string; stops: string[] } | null>(null)
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1)
@@ -301,6 +304,19 @@ export function CRMPage() {
               {isAutoAssigning ? 'Assigning…' : `Auto-Assign (${unassignedCount})`}
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => {
+              setCalcInitial(null)
+              setShowDistanceModal(true)
+            }}
+            className="admin-btn admin-btn-ghost admin-btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+            title="Open Route Distance & Pricing Calculator"
+          >
+            <Calculator size={13} color="var(--adm-accent)" />
+            Distance Calculator
+          </button>
           <button
             onClick={loadLeads}
             disabled={loading}
@@ -901,6 +917,29 @@ export function CRMPage() {
                         Retention: {retentionDays} day(s) retained ({vehicleMobility === 'moving' ? 'Moving' : 'Parked'})
                       </div>
                     )}
+                    <div style={{ marginTop: '0.625rem' }}>
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn-ghost admin-btn-sm"
+                        style={{ fontSize: 11.5, padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                        onClick={() => {
+                          const stopAddresses = Array.isArray(selectedLead.payload?.journeyInformation?.stops)
+                            ? selectedLead.payload.journeyInformation.stops.map((s: any) =>
+                                typeof s === 'string' ? s : s?.displayName || s?.address || ''
+                              ).filter(Boolean)
+                            : []
+                          setCalcInitial({
+                            origin: selectedLead.origin || '',
+                            destination: selectedLead.destination || '',
+                            stops: stopAddresses,
+                          })
+                          setShowDistanceModal(true)
+                        }}
+                      >
+                        <Calculator size={12} color="var(--adm-accent)" />
+                        Calculate / Lookup Route Distance
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1148,6 +1187,40 @@ export function CRMPage() {
         </div>
       )
     })()}
+
+    {/* Distance Calculator Modal for Sales Closers & Operators */}
+    {showDistanceModal && (
+      <div
+        className="admin-modal-backdrop"
+        style={{ zIndex: 300, padding: '1rem', overflowY: 'auto' }}
+        onClick={() => setShowDistanceModal(false)}
+      >
+        <div
+          className="admin-modal"
+          style={{ maxWidth: '980px', width: '100%', maxHeight: '92vh', overflowY: 'auto', background: 'var(--adm-surface)' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <DistanceCalculatorWidget
+            initialOrigin={calcInitial?.origin || ''}
+            initialDestination={calcInitial?.destination || ''}
+            initialStops={calcInitial?.stops || []}
+            compact={false}
+            showMapDefault={true}
+            title="Sales Closer Distance & Quote Calculator"
+            subtitle="Lookup transit mileage, verify highway routes, and compute instant charter estimates"
+            onClose={() => setShowDistanceModal(false)}
+            onApplyDistance={(km, dur, res) => {
+              if (selectedLead) {
+                const appendNote = `[Verified Distance: ${km} km | Est. Travel Time: ${dur} | Billable: ${res.billableDistanceKm} km]`
+                setNoteInput((prev) => (prev ? `${prev}\n${appendNote}` : appendNote))
+                setNoteSaved(false)
+              }
+              setShowDistanceModal(false)
+            }}
+          />
+        </div>
+      </div>
+    )}
     </>
   )
 }

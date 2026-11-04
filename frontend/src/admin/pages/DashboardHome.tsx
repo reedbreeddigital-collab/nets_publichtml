@@ -3,9 +3,10 @@
 // ============================================================================
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, CalendarCheck, Truck, AlertTriangle, Plus, DollarSign, Clock, TrendingUp, Zap, Award } from 'lucide-react'
+import { FileText, CalendarCheck, Truck, AlertTriangle, Plus, DollarSign, Clock, TrendingUp, Zap, Award, Calculator } from 'lucide-react'
 import { useAdminStore } from '../store/useAdminStore'
 import { adminService, AdminStats, AdminLead, AdminBookingDB, CloserStat, formatDuration } from '../services/adminService'
+import { DistanceCalculatorWidget } from '../components/DistanceCalculatorWidget'
 
 const fmt = (n: number) => `₦${Math.round(n).toLocaleString('en-NG')}`
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -135,7 +136,10 @@ export function DashboardHome() {
           <div className="admin-page-title">Executive Dashboard</div>
           <div className="admin-page-desc">Real-time overview of NETS transport operations and customer demand</div>
         </div>
-        <div className="admin-page-actions">
+        <div className="admin-page-actions" style={{ display: 'flex', gap: '0.5rem' }}>
+          <button className="admin-btn admin-btn-ghost" onClick={() => navigate('/admin/calculator')}>
+            <Calculator size={14} /> Distance Calculator Tool
+          </button>
           <button className="admin-btn admin-btn-primary" onClick={() => navigate('/admin/crm')}>
             <Plus size={14} /> View CRM Leads
           </button>
@@ -292,6 +296,14 @@ export function DashboardHome() {
           </div>
         )}
       </div>
+
+      {/* Embedded Executive Distance Calculator Widget */}
+      <DistanceCalculatorWidget
+        title="Executive Distance & Route Calculator"
+        subtitle="Quick mileage, transit duration, depot positioning, and charter pricing lookup"
+        compact={false}
+        showMapDefault={true}
+      />
 
       <div className="admin-grid-2" style={{ gap: '1.5rem' }}>
         {/* Upcoming Trips */}

@@ -6,7 +6,7 @@ import { useRef, useEffect } from 'react'
 import {
   LayoutDashboard, FileText, CalendarCheck, Users, Truck,
   DollarSign, Megaphone, Image, BarChart3, UserCog,
-  Activity, Settings, LogOut, Newspaper, Edit3,
+  Activity, Settings, LogOut, Newspaper, Edit3, Calculator,
 } from 'lucide-react'
 import { useAdminStore, type AdminQuote } from '../../store/useAdminStore'
 
@@ -28,6 +28,7 @@ const operationsItems: SidebarNavItem[] = [
   { to: '/admin/quotes', label: 'Quotes', shortLabel: 'Quotes', icon: FileText },
   { to: '/admin/bookings', label: 'Bookings', shortLabel: 'Bookings', icon: CalendarCheck },
   { to: '/admin/customers', label: 'Customers', shortLabel: 'Clients', icon: Users },
+  { to: '/admin/calculator', label: 'Distance Calculator', shortLabel: 'Distance', icon: Calculator },
 ]
 
 const contentItems: SidebarNavItem[] = [
@@ -130,7 +131,7 @@ export function AdminSidebar() {
         <div className="admin-nav-section">
           <div className="admin-nav-label">Operations</div>
           {operationsItems.map((item) => {
-            if (userRole === 'sales_closer' && item.to !== '/admin/crm') return null
+            if (userRole === 'sales_closer' && item.to !== '/admin/crm' && item.to !== '/admin/calculator') return null
             return renderNavItem(item)
           })}
         </div>
