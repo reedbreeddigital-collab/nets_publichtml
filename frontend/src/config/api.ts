@@ -5,7 +5,7 @@
 export const BACKEND_URL = 
   (import.meta.env.NEXT_PUBLIC_API_URL || 
    import.meta.env.VITE_API_URL || 
-   'https://nets-publichtml.onrender.com')
+   'https://nets-publichtml-e6sm.onrender.com')
     .replace(/\/+$/, '')
     .replace(/\/api\/v1$/, '')
 
