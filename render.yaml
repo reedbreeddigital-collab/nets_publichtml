@@ -1,7 +1,7 @@
 services:
   # NETS Go Backend REST API
   - type: web
-    name: nets-publichtml-e6sm
+    name: nets-publichtml-wj46
     runtime: go
     rootDir: backend
     buildCommand: go build -o server main.go
@@ -40,5 +40,5 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        value: https://nets-publichtml-e6sm.onrender.com/api/v1
+        value: https://nets-publichtml-wj46.onrender.com/api/v1
 
